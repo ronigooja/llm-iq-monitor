@@ -1,0 +1,31 @@
+[project]
+name = "llm-iq-monitor"
+version = "0.1.0"
+description = "Scheduled LLM intelligence, runtime and cost monitor for model routing"
+requires-python = ">=3.11"
+dependencies = [
+  "datasette==0.65.5",
+  "questionary==2.1.1",
+  "APScheduler>=3.11,<4",
+  "httpx>=0.28,<0.29",
+  "pydantic-settings>=2.4",
+  "tomli-w>=1.0",
+  "watchfiles>=1.0",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-asyncio>=0.24"]
+
+[project.scripts]
+llm-iq-monitor = "llm_iq_monitor.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/llm_iq_monitor"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
