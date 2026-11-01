@@ -8,7 +8,7 @@ User=llm-iq-monitor
 Group=llm-iq-monitor
 WorkingDirectory=/opt/llm-iq-monitor
 Environment=LLM_IQ_DATA_DIR=/var/lib/llm-iq-monitor
-ExecStart=/opt/llm-iq-monitor/.venv/bin/python -m datasette serve /var/lib/llm-iq-monitor/monitor.db --host 127.0.0.1 --port 2839 --metadata /opt/llm-iq-monitor/deploy/metadata.yaml --cors --static /opt/llm-iq-monitor/web --template-dir /opt/llm-iq-monitor/deploy/templates --setting default_allow_sql off --setting allow_download off --setting default_cache_ttl 60 --setting max_returned_rows 2000
+ExecStart=/opt/llm-iq-monitor/.venv/bin/python -m datasette serve /var/lib/llm-iq-monitor/monitor.db --host 127.0.0.1 --port 2839 --metadata /opt/llm-iq-monitor/deploy/metadata.yaml --cors --static static:/opt/llm-iq-monitor/web --template-dir /opt/llm-iq-monitor/deploy/templates --setting default_allow_sql off --setting allow_download off --setting default_cache_ttl 60 --setting max_returned_rows 2000
 Restart=on-failure
 
 [Install]

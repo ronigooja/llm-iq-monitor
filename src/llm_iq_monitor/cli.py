@@ -77,8 +77,10 @@ def main(argv: list[str] | None = None) -> None:
         from .runner_main import manual
         manual(args.models)
     elif args.command == "migrate":
-        from .db import migrate_path
-        migrate_path()
+        from .db import connect
+        connect().close()
     elif args.command == "backup":
-        from .db import backup
-        backup()
+        from .db import backup, connect
+        from .settings import data_dir
+        conn = connect()
+        print(backup(conn, data_dir() / "backup"))
