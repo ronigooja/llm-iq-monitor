@@ -1,0 +1,22 @@
+from __future__ import annotations
+import time
+import httpx
+
+
+async def list_models(base_models_url, api_key, client=None):
+    own = client is None
+    if own: client = httpx.AsyncClient()
+    try:
+        response = await client.get(base_models_url, headers={"Authorization": f"Bearer {api_key}"})
+        response.raise_for_status()
+        data = response.json()
+        return [x["id"] for x in data.get("data", []) if isinstance(x, dict) and x.get("id")]
+    finally:
+        if own: await client.aclose()
+
+
+def sync_models(conn, ids):
+    now = time.time(); ids = set(ids)
+    conn.execute("UPDATE models SET active=0")
+    for model in ids:
+        conn.execute("INSERT INTO models(id,active,first_seen,last_seen) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET active=1,last_seen=excluded.last_seen", (model, 1, now, now))
