@@ -36,14 +36,21 @@ def _cron(value: str) -> str:
 
 
 class Gateway(BaseModel):
-    base_url: AnyHttpUrl = "https://ai.nodemgr.uk/v1"
-    models_url: AnyHttpUrl | None = None
+    base_url: str = "https://ai.nodemgr.uk/v1"
+    models_url: str | None = None
     api_key: SecretStr | None = Field(default=None, exclude=True, repr=False)
+
+    @field_validator("base_url", "models_url")
+    @classmethod
+    def valid_url(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return str(AnyHttpUrl(value))
 
     @model_validator(mode="after")
     def default_models_url(self) -> "Gateway":
         if self.models_url is None:
-            self.models_url = AnyHttpUrl(str(self.base_url).rstrip("/") + "/models")
+            self.models_url = str(self.base_url).rstrip("/") + "/models"
         return self
 
 
@@ -57,8 +64,13 @@ class Schedule(BaseModel):
 
 
 class Prices(BaseModel):
-    url: AnyHttpUrl = "https://models.dev/api.json"
+    url: str = "https://models.dev/api.json"
     refresh_cron: str = "30 3 * * *"
+
+    @field_validator("url")
+    @classmethod
+    def valid_url(cls, value: str) -> str:
+        return str(AnyHttpUrl(value))
 
     @field_validator("refresh_cron")
     @classmethod

@@ -1,4 +1,7 @@
-from llm_iq_monitor.menu import estimate_budget
+from datetime import datetime, timezone
+
+from llm_iq_monitor.menu import (apply_model_choice, estimate_budget, next_heartbeat_ticks,
+                                 set_enabled, validate_for_save)
 from llm_iq_monitor.settings import Settings
 
 
@@ -14,3 +17,25 @@ def test_estimate_budget_scales_dimensions_and_efforts():
     assert budget["runs_per_day"] == 8
     assert budget["input_tokens_per_day"] == 48000
     assert budget["output_tokens_per_day"] == 100000
+
+
+def test_model_actions_respect_price_index_and_apply_choices():
+    settings = Settings()
+    set_enabled(settings, ["priced", "free"], True, {"priced": object()})
+    assert settings.models.per_model["priced"].enabled
+    assert "free" not in settings.models.per_model
+    apply_model_choice(settings, ["priced"], 2, ["math"], ["medium"])
+    assert settings.effective("priced").interval_h == 2
+
+
+def test_ticks_and_save_validation_warnings():
+    settings = Settings()
+    settings.models.per_model["old"] = {"enabled": False, "interval_h": 1}
+    settings.models.per_model["new"] = {"enabled": True, "interval_h": 1}
+    settings.schedule.heartbeat_cron = "0 */2 * * *"
+    warnings = validate_for_save(settings, ["new"], price_index={"new": object()})
+    assert any("unknown model id: old" in warning for warning in warnings)
+    assert any("interval shorter than heartbeat: new" in warning for warning in warnings)
+    ticks = next_heartbeat_ticks("0 * * * *", now=datetime(2026, 1, 1, 0, 1, tzinfo=timezone.utc))
+    assert len(ticks) == 5
+    assert ticks[0].hour == 1

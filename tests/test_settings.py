@@ -20,3 +20,10 @@ def test_round_trip_uses_documented_model_table(monkeypatch, tmp_path: Path):
     loaded = load_settings()
     assert loaded.models.per_model["demo-model"].interval_h == 2
     assert loaded.gateway.api_key is None
+
+
+def test_url_round_trip_serializes_as_strings():
+    settings = Settings()
+    dumped = settings.model_dump(mode="json")
+    assert dumped["gateway"]["base_url"] == "https://ai.nodemgr.uk/v1"
+    assert dumped["prices"]["url"] == "https://models.dev/api.json"
