@@ -84,3 +84,20 @@ async def test_settings_reload_rebuilds_scheduler(monkeypatch, tmp_path):
     assert len(schedulers) == 2 and schedulers[1].started
     stop.set()
     await task
+
+
+def test_manual_path_passes_tick_as_tick_time(monkeypatch):
+    import asyncio
+    from llm_iq_monitor import runner_main
+
+    seen = {}
+
+    async def fake_run_model(model, **kw):
+        seen.update(kw)
+
+    monkeypatch.setattr(runner_main.runner_module, "run_model", fake_run_model)
+    from llm_iq_monitor.dispatcher import Dispatcher
+    import inspect
+
+    src = inspect.getsource(runner_main._manual_main)
+    assert "tick_time=tick" in src

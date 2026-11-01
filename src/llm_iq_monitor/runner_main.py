@@ -159,8 +159,8 @@ async def _manual_main(models, *, settings=None, conn=None, dispatcher=None):
         adapter = DBAdapter(conn)
         dispatcher = Dispatcher(
             settings, db=adapter,
-            runner=lambda model, **kw: runner_module.run_model(model, settings=settings, conn=conn,
-                                                               db=adapter, **kw),
+            runner=lambda model, *, tick, trigger: runner_module.run_model(
+                model, settings=settings, conn=conn, db=adapter, tick_time=tick, trigger=trigger),
         )
     await dispatcher.manual(list(models))
     for model in models:
