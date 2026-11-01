@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LLM IQ Monitor</title>
+  <link rel="stylesheet" href="/-/static/uplot/uPlot.min.css">
+  <link rel="stylesheet" href="/-/static/style.css">
+</head>
+<body>
+  <main id="app">
+    <header><h1>LLM IQ Monitor</h1><nav><button data-tab="scores">Scores</button><button data-tab="compare">Compare</button></nav><div id="ranges" class="ranges"><button data-range="7d">7d</button><button data-range="30d">30d</button><button data-range="90d">90d</button><button data-range="all">all</button></div></header>
+    <section id="scores" class="tab"></section><section id="compare" class="tab" hidden></section>
+    <footer>Dataset <span id="dataset">—</span> · Last finished run <span id="last-run">—</span></footer>
+  </main>
+  <script src="/-/static/uplot/uPlot.iife.min.js"></script><script src="/-/static/app.js"></script>
+</body>
+</html>
