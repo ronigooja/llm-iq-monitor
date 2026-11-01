@@ -35,13 +35,14 @@ runs(
   started_at REAL, finished_at REAL,
   status TEXT NOT NULL,         -- see metrics.md
   effort_applied INTEGER,       -- see metrics.md#effort-support
-  overall REAL, availability REAL, duration_s REAL, cost_usd REAL
+  availability REAL, duration_s REAL, cost_usd REAL,
+  rtt_ms REAL                   -- see metrics.md#network-round-trip
 );
 
 run_dims(
   run_id INTEGER NOT NULL REFERENCES runs(id),
   dim TEXT NOT NULL,
-  score REAL, n INTEGER, n_err INTEGER,
+  score REAL, n INTEGER, n_err INTEGER, availability REAL,
   latency_p50 REAL, latency_p95 REAL, ttft_p50 REAL,
   time_total REAL, in_tok INTEGER, out_tok INTEGER,
   cost_usd REAL, cost_per_correct REAL,
@@ -54,7 +55,7 @@ results(
   qid TEXT NOT NULL,            -- e.g. 'math-3'
   dim TEXT NOT NULL,
   correct INTEGER, error TEXT, finish_reason TEXT,
-  latency_s REAL, ttft_s REAL, reasoning_ttft_s REAL,
+  latency_s REAL, ttft_s REAL, reasoning_ttft_s REAL,   -- raw times
   in_tok INTEGER, out_tok INTEGER, reasoning_tok INTEGER,
   reply TEXT                    -- truncated, see retention
 );
@@ -62,7 +63,7 @@ results(
 
 Indexes: `runs(model, effort, started_at)`, `runs(status, finished_at)`, `results(run_id)`.
 
-`prices`, `runs.price_*` and `results` are not readable through the public API ([api.md](api.md#exposure-rules)).
+`prices`, `runs.price_*`, `runs.rtt_ms` and `results` are not readable through the public API ([api.md](api.md#exposure-rules)).
 
 ## Retention
 

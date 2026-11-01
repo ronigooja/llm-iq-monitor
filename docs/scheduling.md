@@ -47,7 +47,7 @@ Gateway behaviour behind this is taken from CLIProxyAPI v8.0.48 source and docs;
 
 Estimates, not measurements. Replace with measured numbers after the first full cycle.
 
-Per run (70 questions, all dimensions): input about 12k tokens; output about 25k without extended thinking, about 100k with it; hard cap `70 × run.max_tokens` (573k at the default). A run with fewer dimensions scales down proportionally.
+Per run (70 questions, all dimensions): input about 12k tokens; output about 25k without extended thinking, about 100k with it; hard cap `70 × run.max_tokens` (about 1.15M at the default). A run with fewer dimensions scales down proportionally.
 
 ```
 runs per day = sum over enabled models of (24 / interval_h × selected efforts)

@@ -7,7 +7,7 @@ For each model served by the gateway, periodically measure how smart it is, how 
 ## Scope
 
 In scope:
-- Intelligence score per dimension and overall, per model and effort ([benchmark.md](benchmark.md), [metrics.md](metrics.md)).
+- Intelligence score per dimension, per model and effort ([benchmark.md](benchmark.md), [metrics.md](metrics.md)).
 - Runtime: per-question latency, time to first token, wall time, availability.
 - Cost per correct answer, from real token usage and listed prices ([cost.md](cost.md)).
 - History of all of the above.
@@ -18,6 +18,7 @@ Out of scope (do not add):
 - Context length, multimodal, safety, throughput benchmarking of the gateway itself.
 - Subjective or LLM-judged quality. The SVG/pelican test is excluded.
 - Comparison with or ingestion of third-party leaderboards.
+- An overall or combined score across dimensions: routing picks a model per capability.
 - Ranking by cost, or a combined value score. Cost is an auxiliary number next to score and latency.
 - Routing itself. Consumers weigh score, latency and cost on their own.
 

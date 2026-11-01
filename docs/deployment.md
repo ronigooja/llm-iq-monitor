@@ -61,4 +61,4 @@ Model-written code is untrusted and must never run in the Runner process. Defaul
 - Image `python:3.11-slim`, pulled once ahead of time.
 - 10 s wall limit per question, enforced by the Runner, which also removes the container. A timeout counts as a failed test, not as an error.
 - Pass condition: all hidden tests pass ([benchmark.md](benchmark.md#scoring)).
-- Caveat: the Runner's user needs access to the Docker daemon, which is root-equivalent on the host. Alternative: nsjail. Choice is open: [decisions.md](decisions.md).
+- Risk accepted by the user: the Runner's user must reach the Docker daemon, which is root-equivalent on the host. Mitigations: the Runner uses a dedicated non-root user, accepts no external requests and handles model replies only as text; the public Datasette process never touches Docker.

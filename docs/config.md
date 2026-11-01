@@ -27,7 +27,8 @@ Precedence, highest first: environment variable `GATEWAY_API_KEY` (key only) →
 | `models.default_efforts` | `["medium"]` | Efforts for models without their own |
 | `run.parallel_models` | 3 | Models run concurrently ([scheduling.md](scheduling.md#execution)) |
 | `run.timeout_s` | 600 | Per-question timeout |
-| `run.max_tokens` | 8192 | Max output tokens per question |
+| `run.max_tokens` | 16384 | Max output tokens per question |
+| `net.rtt_fallback_ms` | 30 | Network round trip used when it cannot be measured ([metrics.md](metrics.md#network-round-trip)) |
 | `retention.reply_days` | 14 | Days to keep raw replies ([data-model.md](data-model.md#retention)) |
 
 ## Per-model settings
@@ -57,7 +58,7 @@ Command: `llm-iq-monitor config`. Built with questionary (checkbox, select, pass
 | 1 | Gateway | Edit base URL and models URL; set the key (hidden input, never echoed or printed); test connection |
 | 2 | Models | Fetch the list and show each model with its state, interval, dimensions and efforts. Models without a price are shown as "no price" and cannot be checked. Check models to enable them (a newly enabled model gets the defaults); pick one model to edit its interval, dimensions and efforts; apply one choice to several checked models at once |
 | 3 | Defaults and heartbeat | `schedule.heartbeat_cron` (shows the next five ticks), `models.default_*`, `prices.*` |
-| 4 | Run limits | Parallel models, timeout, max tokens, reply retention |
+| 4 | Run limits | Parallel models, timeout, max tokens, round-trip fallback, reply retention |
 | 5 | Review | Show all settings with the key masked, and the estimated runs and tokens per day ([scheduling.md](scheduling.md#token-budget)) |
 | 6 | Quit | Save and exit, or discard |
 
