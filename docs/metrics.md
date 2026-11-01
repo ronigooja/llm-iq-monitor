@@ -32,12 +32,9 @@ Rules:
 
 ### Effort support
 
-A status code alone does not prove the effort took effect, so two checks apply to every run:
+The effort is what the request asks for; the effort the model actually used is not verified. Reply content and reasoning token counts are never used to judge it, and results are scored as returned.
 
-1. The gateway rejects the combination with HTTP 400: the run is stored with status `unsupported`, no results, and is excluded from charts and the API. It is not retried until the settings or the model list change.
-2. HTTP 200 but `reasoning_tok` is null or zero for every question of the run: the run is kept with `effort_applied = 0`. The gateway may have ignored or downgraded the effort, or the model does not think. The website marks such a target as unverified.
-
-Otherwise `effort_applied = 1`.
+The only check: if the gateway rejects the combination with HTTP 400, the run is stored with status `unsupported`, no results, and is excluded from charts and the API. It is not retried until the settings or the model list change.
 
 ## Per dimension (run_dims)
 
@@ -61,7 +58,6 @@ Otherwise `effort_applied = 1`.
 | `availability` | `answered / total questions` |
 | `duration_s` | run wall time |
 | `status` | `running`, `ok` (no errors), `partial` (some errors), `aborted`, `unsupported` |
-| `effort_applied` | see [Effort support](#effort-support) |
 | `cost_usd` | sum of dimension costs ([cost.md](cost.md#calculation)) |
 
 ## Network round trip

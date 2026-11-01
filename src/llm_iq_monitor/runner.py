@@ -43,7 +43,6 @@ async def run_model(model: str, *, settings, conn=None, db=None, gateway=None,
                               price_fetched_at=price[3] if price and len(price) > 3 else None,
                               started_at=time.time(), status="running", rtt_ms=rtt)
         had_error = False
-        reasoning = False
         unsupported = False
         try:
             for dim in dimensions:
@@ -58,7 +57,6 @@ async def run_model(model: str, *, settings, conn=None, db=None, gateway=None,
                                                     timeout=_v(settings.run, "timeout_s"))
                         if getattr(reply, "error", None): raise RuntimeError(reply.error)
                         correct = await _score(question, reply.reply)
-                        if getattr(reply, "reasoning_tok", None): reasoning = True
                         fields = dict(qid=question.qid, dim=dim, correct=int(bool(correct)), error=None,
                                       finish_reason=reply.finish_reason, latency_s=reply.latency_s,
                                       ttft_s=reply.ttft_s, reasoning_ttft_s=reply.reasoning_ttft_s,
@@ -66,8 +64,7 @@ async def run_model(model: str, *, settings, conn=None, db=None, gateway=None,
                                       reply=reply.reply[:2000])
                     except Exception as exc:
                         if getattr(exc, "unsupported", False):
-                            await _call(db.finish_run, conn, run_id, status="unsupported",
-                                        effort_applied=None)
+                            await _call(db.finish_run, conn, run_id, status="unsupported")
                             unsupported = True
                             break
                         had_error = True
@@ -82,11 +79,11 @@ async def run_model(model: str, *, settings, conn=None, db=None, gateway=None,
                 break
             if not unsupported:
                 await _call(db.finish_run, conn, run_id, status="partial" if had_error else "ok",
-                            effort_applied=int(reasoning), finished_at=time.time())
+                            finished_at=time.time())
                 aggregate = _lazy("llm_iq_monitor.aggregate")
                 await _call(aggregate.finalize_run, conn, run_id)
         except Exception:
-            await _call(db.finish_run, conn, run_id, status="aborted", effort_applied=None)
+            await _call(db.finish_run, conn, run_id, status="aborted")
             raise
         out.append(run_id)
     return out

@@ -16,7 +16,7 @@ databases:
         sql: |
           WITH latest AS (
             SELECT r.id AS run_id, r.model, r.effort, r.finished_at,
-                   r.dataset_version, r.status, r.effort_applied,
+                   r.dataset_version, r.status,
                    d.dim, d.score, d.latency_p50, d.latency_p95,
                    d.ttft_p50, d.time_total, d.n, d.n_err, d.cost_usd,
                    d.cost_per_correct, d.availability,
@@ -38,7 +38,7 @@ databases:
           )
           SELECT CASE WHEN score IS NULL THEN NULL ELSE score_rank END AS rank,
                  model, effort, run_id, finished_at, dataset_version, status,
-                 effort_applied, availability, score, latency_p50, latency_p95,
+                 availability, score, latency_p50, latency_p95,
                  ttft_p50, time_total, n, n_err, cost_usd, cost_per_correct
           FROM ranked
           ORDER BY CASE WHEN score IS NULL THEN 1 ELSE 0 END,
@@ -49,7 +49,7 @@ databases:
         sql: |
           SELECT r.finished_at AS t, r.id AS run_id, r.dataset_version,
                  d.score, d.latency_p50, d.latency_p95, d.ttft_p50,
-                 d.time_total, d.availability, r.effort_applied,
+                 d.time_total, d.availability,
                  d.cost_per_correct
           FROM runs AS r JOIN run_dims AS d ON d.run_id = r.id
           WHERE r.model = :model AND r.effort = :effort AND d.dim = :dim
@@ -79,7 +79,7 @@ databases:
                    WHERE rr.model = f.model AND rr.effort = f.effort
                      AND rr.status NOT IN ('unsupported', 'aborted', 'running')
                  ) x) AS dims,
-                 f.finished_at AS last_finished_at, f.status AS last_status, f.effort_applied
+                 f.finished_at AS last_finished_at, f.status AS last_status
           FROM finished f JOIN models m ON m.id = f.model
           WHERE f.rn = 1
           ORDER BY f.model, f.effort

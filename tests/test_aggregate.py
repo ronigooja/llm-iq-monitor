@@ -19,4 +19,4 @@ def test_finalize():
     finalize_run(conn, run)
     row = conn.execute("SELECT * FROM run_dims").fetchone()
     assert row["n"] == 2 and row["n_err"] == 1 and row["score"] == 100
-    assert conn.execute("SELECT effort_applied,status FROM runs").fetchone()[:2] == (1, "partial")
+    assert conn.execute("SELECT status FROM runs").fetchone()[0] == "partial"

@@ -22,9 +22,9 @@ Public, read-only, JSON, no authentication. Provided by [Datasette](https://data
 | `health` | none | Liveness of the pipeline |
 
 Columns:
-- `ranking`: `rank` (null when the score is null), `model`, `effort`, `run_id`, `finished_at`, `dataset_version`, `status`, `effort_applied`, `availability`, `score`, `latency_p50`, `latency_p95`, `ttft_p50`, `time_total`, `n`, `n_err`, `cost_usd`, `cost_per_correct`. `availability` is that dimension's `(n − n_err) / n`.
-- `series`: `t`, `run_id`, `dataset_version`, `score`, `latency_p50`, `latency_p95`, `ttft_p50`, `time_total`, `availability`, `effort_applied`, `cost_per_correct`.
-- `models`: `model`, `effort`, `active`, `dims`, `last_finished_at`, `last_status`, `effort_applied`.
+- `ranking`: `rank` (null when the score is null), `model`, `effort`, `run_id`, `finished_at`, `dataset_version`, `status`, `availability`, `score`, `latency_p50`, `latency_p95`, `ttft_p50`, `time_total`, `n`, `n_err`, `cost_usd`, `cost_per_correct`. `availability` is that dimension's `(n − n_err) / n`.
+- `series`: `t`, `run_id`, `dataset_version`, `score`, `latency_p50`, `latency_p95`, `ttft_p50`, `time_total`, `availability`, `cost_per_correct`.
+- `models`: `model`, `effort`, `active`, `dims`, `last_finished_at`, `last_status`.
 - `health`: `last_finished_at`, `running_runs`, `prices_fetched_at`.
 
 Runs with status `unsupported`, `aborted` or `running` are excluded from `ranking` and `series`.

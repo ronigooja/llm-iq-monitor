@@ -35,7 +35,7 @@
 | Decision | Basis |
 |---|---|
 | `reasoning_effort` body field, always sent | CLIProxyAPI source and docs ([scheduling.md](scheduling.md#request-parameters)) |
-| Effort support checked in two layers (HTTP 400, then reasoning tokens) | Gateway can silently downgrade or ignore ([metrics.md](metrics.md#effort-support)) |
+| Effort is taken as requested; only an HTTP 400 rejection is recorded as `unsupported`. No check of reasoning tokens or reply content | User decision ([metrics.md](metrics.md#effort-support)) |
 | Datasette canned queries, Runner and Web as separate processes | Verified locally ([api.md](api.md#exposure-rules)) |
 | APScheduler 3.x, jobs not persisted; httpx for streaming; no evaluation framework | [architecture.md](architecture.md#dependencies) |
 | Science dimension uses seeded calculation problems, not sampled GPQA | GPQA is public and likely memorised ([benchmark.md](benchmark.md#dimensions)) |

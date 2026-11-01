@@ -94,11 +94,9 @@
     try { rows = await api('series', { model, effort, dim, from }); } catch (e) { target.textContent = 'Unable to load data.'; return; }
     if (el.dataset.effort !== effort || el.dataset.dim !== dim) return;
     target.replaceChildren();
-    const g = state.models.get(model).efforts.get(effort);
     const last = rows[rows.length - 1];
-    const unverified = g && g.effort_applied === 0 ? ' · <span class="unverified">effort unverified</span>' : '';
     el.querySelector('.meta').innerHTML = last
-      ? `availability ${num(last.availability * 100, 0)}% · last run ${esc(when(last.t))}${unverified}`
+      ? `availability ${num(last.availability * 100, 0)}% · last run ${esc(when(last.t))}`
       : 'no data in range';
     if (!rows.length) { target.innerHTML = '<p class="muted">No data in this range.</p>'; return; }
 
@@ -152,7 +150,7 @@
         const max = Math.max(1, ...rows.map(x => x.latency_p50 || 0));
         box.innerHTML = rows.map(x => `<div class="rank-row">
           <span class="rank">${x.rank ?? '—'}</span>
-          <span class="name">${esc(x.model)}<span class="muted">@${esc(x.effort)}</span>${x.effort_applied === 0 ? ' <span class="unverified">effort unverified</span>' : ''}</span>
+          <span class="name">${esc(x.model)}<span class="muted">@${esc(x.effort)}</span></span>
           <span class="track"><span class="bar" style="width:${x.score == null ? 0 : x.score}%"></span>${x.latency_p50 == null ? '' : `<span class="dot" style="left:${x.latency_p50 / max * 100}%"></span>`}</span>
           <span class="row-value">${num(x.score)} · ${secs(x.latency_p50)} · ${usd(x.cost_per_correct)}</span></div>`).join('') || '<p class="muted">No data.</p>';
       } catch (e) { box.textContent = 'Unable to load data.'; }

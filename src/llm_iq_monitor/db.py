@@ -47,7 +47,7 @@ def migrate(conn: sqlite3.Connection):
           trigger TEXT NOT NULL, dims TEXT NOT NULL, params TEXT NOT NULL,
           price_in REAL, price_out REAL, price_fetched_at REAL,
           started_at REAL, finished_at REAL, status TEXT NOT NULL,
-          effort_applied INTEGER, availability REAL, duration_s REAL,
+          availability REAL, duration_s REAL,
           cost_usd REAL, rtt_ms REAL
         );
         CREATE TABLE IF NOT EXISTS run_dims (

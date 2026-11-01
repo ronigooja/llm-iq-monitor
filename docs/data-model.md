@@ -34,7 +34,6 @@ runs(
   price_in REAL, price_out REAL, price_fetched_at REAL,   -- price snapshot
   started_at REAL, finished_at REAL,
   status TEXT NOT NULL,         -- see metrics.md
-  effort_applied INTEGER,       -- see metrics.md#effort-support
   availability REAL, duration_s REAL, cost_usd REAL,
   rtt_ms REAL                   -- see metrics.md#network-round-trip
 );

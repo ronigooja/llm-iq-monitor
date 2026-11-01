@@ -49,9 +49,7 @@ def finalize_run(conn, run_id):
         if cost is not None: total_cost += cost; has_cost = True
         conn.execute("INSERT OR REPLACE INTO run_dims (run_id,dim,score,n,n_err,availability,latency_p50,latency_p95,ttft_p50,time_total,in_tok,out_tok,cost_usd,cost_per_correct) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                      (run_id, dim, score, n, errors, (n-errors)/n if n else None, percentile(lat,.5), percentile(lat,.95), percentile(ttft,.5), sum(r["latency_s"] or 0 for r in items), in_tok, out_tok, cost, correct_cost))
-    reasoning = [r["reasoning_tok"] for r in rows]
-    effort_applied = None if not rows else int(any(x is not None and x > 0 for x in reasoning))
     status = "ok" if not any(r["error"] is not None for r in rows) else "partial"
     duration = (run["finished_at"] - run["started_at"]) if run["finished_at"] is not None and run["started_at"] is not None else None
-    conn.execute("UPDATE runs SET availability=?, duration_s=?, cost_usd=?, status=?, effort_applied=? WHERE id=?",
-                 (answered / total if total else None, duration, total_cost if has_cost else None, status, effort_applied, run_id))
+    conn.execute("UPDATE runs SET availability=?, duration_s=?, cost_usd=?, status=? WHERE id=?",
+                 (answered / total if total else None, duration, total_cost if has_cost else None, status, run_id))

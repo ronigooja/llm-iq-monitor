@@ -61,7 +61,7 @@ async def test_full_cycle_real_db_and_datasette(tmp_path, monkeypatch):
     results = conn.execute("SELECT * FROM results ORDER BY id").fetchall()
     dims = conn.execute("SELECT * FROM run_dims ORDER BY run_id, dim").fetchall()
     assert [r["effort"] for r in runs] == ["low", "high"]
-    assert all(r["status"] == "ok" and r["effort_applied"] == 1 for r in runs)
+    assert all(r["status"] == "ok" for r in runs)
     assert all(r["rtt_ms"] == 50 and r["price_in"] == 2 and r["price_out"] == 4 for r in runs)
     assert len(results) == 12 and len(dims) == 12
     assert all(r["correct"] == 1 and r["error"] is None for r in results)

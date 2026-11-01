@@ -24,9 +24,9 @@ async def client(monitor_db):
 @pytest.mark.asyncio
 async def test_canned_queries_and_exposure(client):
     expected = {
-        "ranking": {"rank", "model", "effort", "run_id", "finished_at", "dataset_version", "status", "effort_applied", "availability", "score", "latency_p50", "latency_p95", "ttft_p50", "time_total", "n", "n_err", "cost_usd", "cost_per_correct"},
-        "series": {"t", "run_id", "dataset_version", "score", "latency_p50", "latency_p95", "ttft_p50", "time_total", "availability", "effort_applied", "cost_per_correct"},
-        "models": {"model", "effort", "active", "dims", "last_finished_at", "last_status", "effort_applied"},
+        "ranking": {"rank", "model", "effort", "run_id", "finished_at", "dataset_version", "status", "availability", "score", "latency_p50", "latency_p95", "ttft_p50", "time_total", "n", "n_err", "cost_usd", "cost_per_correct"},
+        "series": {"t", "run_id", "dataset_version", "score", "latency_p50", "latency_p95", "ttft_p50", "time_total", "availability", "cost_per_correct"},
+        "models": {"model", "effort", "active", "dims", "last_finished_at", "last_status"},
         "health": {"last_finished_at", "running_runs", "prices_fetched_at"},
     }
     params = {"ranking": {"dim": "math"}, "series": {"model": "alpha", "effort": "medium", "dim": "math"}, "models": {}, "health": {}}
