@@ -27,7 +27,8 @@ async def test_full_cycle_real_db_and_datasette(tmp_path, monkeypatch):
     monkeypatch.setattr("llm_iq_monitor.runner._generate", lambda dim, seed: [questions[dim]])
     async def fake_code_runner(code, tests):
         return True
-    monkeypatch.setattr(sandbox, "score_code", lambda question, reply: True)
+    async def _ok(question, reply): return True
+    monkeypatch.setattr(sandbox, "ascore_code", _ok)
 
     def handler(request):
         payload = json.loads(request.content)

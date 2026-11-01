@@ -43,6 +43,18 @@ async def run_code(code: str, tests: list, timeout_s: float = 10) -> bool:
             return False
 
 
+async def ascore_code(question: Any, reply: str, runner: Callable[..., Any] = run_code) -> bool:
+    from .questions.code import extract_code
+
+    code = extract_code(reply)
+    if code is None:
+        return False
+    result = runner(code, question.meta.get("tests", []))
+    if hasattr(result, "__await__"):
+        result = await result
+    return bool(result)
+
+
 def score_code(question: Any, reply: str, runner: Callable[..., Any] = run_code) -> bool:
     from .questions.code import extract_code
 

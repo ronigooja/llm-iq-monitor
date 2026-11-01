@@ -100,10 +100,8 @@ async def _generate(dim, seed):
 
 async def _score(question, reply):
     if question.kind == "code":
-        from llm_iq_monitor.questions.code import extract_code
-        from llm_iq_monitor.sandbox import score_code
-        code = extract_code(reply)
-        return await _call(score_code, question, code)
+        from llm_iq_monitor.sandbox import ascore_code
+        return await ascore_code(question, reply)
     from llm_iq_monitor.scoring import score
     return await _call(score, question, reply)
 

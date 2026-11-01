@@ -28,3 +28,14 @@ def test_score_code_uses_injected_runner_without_docker():
 def test_score_code_rejects_missing_solution():
     question = type("Question", (), {"meta": {"tests": []}})()
     assert not score_code(question, "plain text", lambda *_: True)
+
+
+async def test_ascore_code_works_inside_running_loop():
+    from llm_iq_monitor.sandbox import ascore_code
+
+    async def fake_runner(code, tests):
+        return "def solve" in code
+
+    question = type("Q", (), {"meta": {"tests": []}})()
+    assert await ascore_code(question, "```python\ndef solve(x):\n    return x\n```", fake_runner)
+    assert not await ascore_code(question, "no code", fake_runner)
