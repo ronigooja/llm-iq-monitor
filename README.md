@@ -2,7 +2,7 @@
 
 Scheduled benchmark that measures **intelligence**, **runtime** and **cost** of the chat models behind the CLIProxyAPI gateway, keeps the history, and publishes it through a public JSON API and a one-page website at `https://iq.z0e.dev`. Primary consumer: model routers.
 
-Status: design only. No code yet. Open questions: [docs/decisions.md](docs/decisions.md).
+Status: deployed and running. Decisions: [docs/decisions.md](docs/decisions.md). Deployment: [docs/deployment.md](docs/deployment.md).
 
 ## Doc map
 
