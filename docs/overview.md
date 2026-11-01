@@ -20,7 +20,7 @@ Out of scope (do not add):
 
 ## Targets
 
-- Gateway: cliproxyapi, OpenAI-compatible, base URL in [deployment.md](deployment.md#environment).
+- Gateway: cliproxyapi, OpenAI-compatible, default base URL in [config.md](config.md#settings). The model list is loaded from the gateway's models endpoint.
 - Public site: `https://iq.z0e.dev`, served from the host in [deployment.md](deployment.md#host).
 
 ## Glossary
@@ -28,7 +28,7 @@ Out of scope (do not add):
 | Term | Meaning |
 |---|---|
 | Gateway | The cliproxyapi OpenAI-compatible endpoint under test |
-| Model | A model id returned by the gateway's `/v1/models` |
+| Model | A model id returned by the gateway's model list (`gateway.models_url`, [config.md](config.md#settings)) |
 | Dimension | One of six question groups ([benchmark.md](benchmark.md#dimensions)) |
 | Question | One generated prompt with a machine-checkable answer |
 | Round | One scheduled batch; all models in it get identical questions (shared seed) |

@@ -6,4 +6,5 @@
 - When exposing data publicly: aggregates only. Never expose question text, expected answers, or raw replies ([docs/api.md](docs/api.md#exposure-rules)).
 - When adding code: follow the layout in [docs/architecture.md](docs/architecture.md#repo-layout).
 - When a design choice is not yet confirmed by the user: record it as open in [docs/decisions.md](docs/decisions.md), not as fact elsewhere.
-- Never write secrets into the repo. Secret handling: [docs/deployment.md](docs/deployment.md#secrets).
+- When adding a user-tunable setting: define it once in [docs/config.md](docs/config.md#settings) and expose it in the interactive menu. Do not hardcode tunables or repeat their values in other docs.
+- Never write secrets into the repo. Never ask for, read, or print the gateway key. Secret handling: [docs/deployment.md](docs/deployment.md#secrets).

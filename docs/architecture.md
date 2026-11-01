@@ -7,7 +7,8 @@ One Python process, one SQLite file.
 | Component | Responsibility |
 |---|---|
 | Scheduler | Fires rounds on the schedule in [scheduling.md](scheduling.md); skips a trigger if the previous round is still running; marks leftover `running` rows as `aborted` on startup |
-| Model discovery | At round start, lists the gateway's `/v1/models`, filters non-chat models, assigns tiers |
+| Settings | Loads and validates settings, hot-reloads on file change ([config.md](config.md)) |
+| Model discovery | At round start, loads the model list from `gateway.models_url`, applies `models.exclude`, assigns tiers |
 | Question generator | Builds the question set from a round seed ([benchmark.md](benchmark.md#generation)) |
 | Gateway client | Streaming chat completion call; measures latency and time to first token |
 | Scorer | Deterministic checkers per question kind ([benchmark.md](benchmark.md#scoring)) |
@@ -16,7 +17,7 @@ One Python process, one SQLite file.
 | Storage | SQLite, WAL mode ([data-model.md](data-model.md)) |
 | API | Read-only JSON ([api.md](api.md)) |
 | Web | Static files served by the same process ([web.md](web.md)) |
-| CLI | Manual trigger, dry run, migrations, backup |
+| CLI | Interactive config menu ([config.md](config.md#interactive-menu)), manual trigger, dry run, migrations, backup |
 
 ## Data flow
 
@@ -44,7 +45,8 @@ README.md
 AGENTS.md
 docs/
 src/llm_iq_monitor/
-  config.py        env + models config
+  settings.py      load, validate, hot-reload (config.md)
+  menu.py          interactive config menu, stdlib only
   discovery.py
   questions/       one module per dimension + registry
   scoring.py
@@ -57,8 +59,7 @@ src/llm_iq_monitor/
   api.py
   cli.py
 web/               static files
-config/models.toml tiers and exclusions (no secrets)
-deploy/            systemd unit, env template, nginx note
+deploy/            systemd unit, nginx note
 tests/
 ```
 

@@ -23,33 +23,31 @@ Already configured by the user; do not modify.
 - Proxy target: `http://127.0.0.1:2839`.
 - `nginx -t` passed on 2026-11-02.
 
-The app must listen on `127.0.0.1:2839`. Abuse control for the public API (rate limits, caching) belongs here or in Cloudflare, not in the app.
+The app must listen on `127.0.0.1:2839` (`server.bind`, [config.md](config.md#settings)). Abuse control for the public API (rate limits, caching) belongs here or in Cloudflare, not in the app.
 
 DNS check note: the local resolver on the developer machine returns a fake-IP (`198.18.x.x`). Verify DNS against a public resolver, for example `dig @1.1.1.1 iq.z0e.dev`.
 
 ## Service
 
 - systemd unit `llm-iq-monitor.service`, running as a dedicated unprivileged user.
-- Install path `/opt/llm-iq-monitor` (code and virtualenv), data in `/var/lib/llm-iq-monitor`.
+- Install path `/opt/llm-iq-monitor` (code and virtualenv); config and data directories: see Environment below.
 - Restart on failure; logs to journald.
 - The user is in the `docker` group only if the sandbox below needs it.
 
 ## Environment
 
-| Variable | Meaning |
-|---|---|
-| `GATEWAY_BASE_URL` | Gateway base URL, currently `https://ai.nodemgr.uk/v1` (from the developer's opencode config) |
-| `GATEWAY_API_KEY` | Gateway key, see Secrets |
-| `DATA_DIR` | SQLite and backups |
-| `BIND_ADDR` | `127.0.0.1:2839` |
+| Variable | Default | Meaning |
+|---|---|---|
+| `LLM_IQ_CONFIG_DIR` | `/etc/llm-iq-monitor` | Holds `settings.toml` and `secrets.env` |
+| `LLM_IQ_DATA_DIR` | `/var/lib/llm-iq-monitor` | SQLite and backups |
 
-Reachability of the gateway from the host is not yet verified.
+All other settings, including the gateway URL and key, are in [config.md](config.md). Reachability of the gateway from the host is not yet verified.
 
 ## Secrets
 
-- The key lives only in a root-owned file with mode 600 on the host, loaded through systemd `EnvironmentFile`.
-- The repo contains `deploy/env.example` with variable names only.
-- Who fills in the key is open: [decisions.md](decisions.md).
+- The key is entered through the config menu ([config.md](config.md#interactive-menu)) on the host and stored in `$LLM_IQ_CONFIG_DIR/secrets.env`, mode 600, owned by the service user; the systemd unit reads it through `EnvironmentFile`.
+- The agent never handles the key; the user types it into the menu.
+- The repo contains no key and no `secrets.env`.
 
 ## Code sandbox
 

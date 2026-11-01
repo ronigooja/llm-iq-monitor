@@ -1,45 +1,39 @@
 # Scheduling
 
+Values live in [config.md](config.md#settings); this doc defines behaviour.
+
 ## Tiers
 
-| Tier | Models | Frequency |
+| Tier | Models | Trigger |
 |---|---|---|
-| A | Current main models listed in `config/models.toml` | every 6 hours: 00:00, 06:00, 12:00, 18:00 UTC |
-| B | Every other chat model the gateway lists | once a day: 03:00 UTC |
+| A | Models in `models.tier_a` | `schedule.tier_a_cron` |
+| B | Every other model from the gateway model list | `schedule.tier_b_cron` |
 
-Not yet confirmed by the user: see [decisions.md](decisions.md).
+Defaults of the triggers: [config.md](config.md#settings). A tier-B trigger that coincides with a tier-A trigger runs as one round.
 
-Model discovery rules:
-- Source: gateway `/v1/models` at round start.
-- Non-chat models are dropped by the exclusion list in `config/models.toml`.
+Model discovery:
+- Source: `gateway.models_url` at round start.
+- Ids matching `models.exclude` are dropped.
 - A model absent from the list is marked inactive; its history stays.
-- A new model starts in tier B until listed in tier A.
+- A new model is tier B until added to `models.tier_a`.
 
 ## Round execution
 
 - Round seed: the scheduled time, `YYYYMMDDHH` (UTC), shared by all models in the round ([benchmark.md](benchmark.md#generation)).
-- Models run in parallel up to 3. Within a model, questions run one at a time, so a model's own load does not distort its latency.
+- Models run in parallel up to `run.parallel_models`. Within a model, questions run one at a time, so a model's own load does not distort its latency.
 - If a round is still running at the next trigger, the trigger is skipped and logged.
 - On startup, rounds and runs left `running` become `aborted`.
 - Manual run: CLI, same code path, `trigger = 'manual'`.
 
 ## Request parameters
 
-| Parameter | Value |
-|---|---|
-| Per-question timeout | 600 s |
-| Max output tokens | 8192 |
-| Streaming | on |
-| Retries | none ([metrics.md](metrics.md#errors)) |
-| Reasoning and sampling settings | gateway defaults, none sent; the settings actually sent are stored in `runs.params` |
-
-Reasoning and token-limit policy is not final: see [decisions.md](decisions.md).
+From `run.timeout_s`, `run.max_tokens`, `run.reasoning_effort` ([config.md](config.md#settings)). Streaming is always on. No retries ([metrics.md](metrics.md#errors)). The values actually sent are stored in `runs.params` ([data-model.md](data-model.md)), so history stays interpretable after a setting changes.
 
 ## Token budget
 
 Estimates, not measurements. Replace with measured numbers after the first full round.
 
-Per run (70 questions): input about 12k tokens; output about 25k without extended thinking, about 100k with it; hard cap 70 × 8192 = 573k.
+Per run (70 questions): input about 12k tokens; output about 25k without extended thinking, about 100k with it; hard cap `70 × run.max_tokens` (573k at the default).
 
 27 models were listed by the gateway on 2026-11-02.
 
