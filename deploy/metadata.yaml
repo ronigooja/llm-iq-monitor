@@ -1,7 +1,7 @@
 databases:
   monitor:
     source: monitor.db
-    allow: true
+    allow: false
     allow_sql: false
     tables:
       models: {allow: false}

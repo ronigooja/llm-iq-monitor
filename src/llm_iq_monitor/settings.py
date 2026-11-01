@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import logging
 import tomllib
 from pathlib import Path
 from typing import Any, Awaitable, Callable
@@ -11,6 +12,8 @@ import tomli_w
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError, field_validator, model_validator
 from pydantic.networks import AnyHttpUrl
 from watchfiles import awatch
+
+log = logging.getLogger(__name__)
 
 DIMS = ("trap", "math", "logic", "code", "instruction", "science")
 EFFORTS = ("low", "medium", "high")
@@ -232,6 +235,7 @@ async def watch_settings(callback: Callable[[Settings], Any] | Callable[[Setting
             try:
                 value = load_settings()
             except (OSError, ValidationError, ValueError, tomllib.TOMLDecodeError):
+                log.exception("ignoring invalid settings change")
                 continue
             result = callback(value)
             if hasattr(result, "__await__"):

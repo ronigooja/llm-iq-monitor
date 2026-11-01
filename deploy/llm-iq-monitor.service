@@ -10,7 +10,7 @@ WorkingDirectory=/opt/llm-iq-monitor
 Environment=LLM_IQ_CONFIG_DIR=/etc/llm-iq-monitor
 Environment=LLM_IQ_DATA_DIR=/var/lib/llm-iq-monitor
 EnvironmentFile=/etc/llm-iq-monitor/secrets.env
-ExecStart=/opt/llm-iq-monitor/.venv/bin/python -m llm_iq_monitor.runner
+ExecStart=/opt/llm-iq-monitor/.venv/bin/python -m llm_iq_monitor run
 Restart=on-failure
 
 [Install]

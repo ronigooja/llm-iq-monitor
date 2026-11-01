@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from typing import Any
 
@@ -36,6 +37,7 @@ def _set(settings: Settings, key: str, raw: str) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     parser = argparse.ArgumentParser(prog="llm-iq-monitor")
     sub = parser.add_subparsers(dest="command", required=True)
     config = sub.add_parser("config")

@@ -34,8 +34,6 @@ async def test_canned_queries_and_exposure(client):
         response = await client.get(f"/monitor/{name}.json", params={**params[name], "_shape": "array"})
         assert response.status_code == 200, response.text
         assert set(response.json()[0]) == columns
-    # Datasette requires view-database for canned queries, so the database
-    # index remains visible while table access is denied.
-    assert (await client.get("/monitor.json")).status_code == 200
+    assert (await client.get("/monitor.json")).status_code == 403
     assert (await client.get("/monitor/runs.json")).status_code == 403
     assert (await client.get("/monitor.db")).status_code == 403

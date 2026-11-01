@@ -13,8 +13,10 @@ def _get(obj, name, default=None):
 
 
 class Dispatcher:
-    def __init__(self, settings, *, db=None, runner=None, clock: Callable[[], float] = time.time):
+    def __init__(self, settings, *, db=None, runner=None, clock: Callable[[], float] = time.time,
+                 models_loader=None):
         self.settings, self.db, self.runner, self.clock = settings, db, runner, clock
+        self.models_loader = models_loader
         self.queue = deque()
         self.active: set[str] = set()
         self.last_trigger: dict[str, float] = {}
@@ -22,7 +24,7 @@ class Dispatcher:
 
     async def tick(self, tick_time: float | None = None, models: list[str] | None = None):
         tick = self.clock() if tick_time is None else tick_time
-        names = models or await self._models()
+        names = await self._models() if models is None else models
         for model in names:
             effective = self.settings.effective(model)
             if not _get(effective, "enabled", False) or model in self.active or model in self.queue:
@@ -58,8 +60,19 @@ class Dispatcher:
             if model not in self.active and not any(x[0] == model for x in self.queue):
                 self.queue.append((model, self.clock(), "manual"))
         await self._ensure_workers()
+        return await self.wait()
+
+    async def wait(self):
+        """Wait for all currently queued work to finish."""
+        while self._workers:
+            workers = list(self._workers)
+            await asyncio.gather(*workers)
+            self._workers = [worker for worker in self._workers if not worker.done()]
 
     async def _models(self):
+        if self.models_loader is not None:
+            value = self.models_loader()
+            return await value if inspect.isawaitable(value) else value
         if hasattr(self.settings, "gateway"):
             import llm_iq_monitor.discovery as discovery
             value = discovery.list_models(self.settings.gateway.models_url, self.settings.gateway.api_key)
