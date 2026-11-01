@@ -22,6 +22,10 @@ Single source for what is recorded and how it is aggregated. Table columns: [dat
 | `network_error` | connection or stream failure |
 | `empty_reply` | stream ended with no content |
 
+### Unsupported effort
+
+If the gateway rejects a model/effort combination with a 4xx that names the parameter, the run is stored with status `unsupported`, no results, and is excluded from charts and `/latest`. The pair is not retried until the settings or the model list change. Any other failure follows the normal error rules.
+
 Rules:
 - No retries. Availability is itself a routing signal.
 - An errored question has `correct = null` and is excluded from the score but counted in availability.
@@ -46,10 +50,11 @@ Rules:
 | `overall` | mean of non-null dimension scores, equal weights; null if none |
 | `availability` | `answered / total questions` |
 | `duration_s` | run wall time |
-| `status` | `running`, `ok` (no errors), `partial` (some errors), `aborted` |
+| `status` | `running`, `ok` (no errors), `partial` (some errors), `aborted`, `unsupported` |
 
 ## Principles
 
+- Efforts are never averaged or merged: every target has its own series.
 - Score, latency, and availability are stored separately and never merged into one number. Consumers apply their own weights.
 - Latency is measured from the monitor host ([deployment.md](deployment.md#host)). It reflects the host-to-gateway path, not the consumer's path.
 - Smoothing and moving averages are computed by readers, not stored.

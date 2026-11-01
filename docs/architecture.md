@@ -22,9 +22,9 @@ One Python process, one SQLite file.
 ## Data flow
 
 1. Scheduler starts a round and fixes its seed.
-2. Discovery returns the models due in this round.
+2. Discovery returns the targets (model plus effort) due in this round.
 3. Generator builds the questions once; every model gets the same set.
-4. Per model (models in parallel up to the limit, questions serial): gateway client → scorer (or sandbox → scorer) → one `results` row per question.
+4. Per target (targets in parallel up to the limit, questions serial): gateway client → scorer (or sandbox → scorer) → one `results` row per question.
 5. Aggregator writes `run_dims` and updates the `runs` row.
 6. API and web read only from SQLite.
 

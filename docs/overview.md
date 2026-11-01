@@ -7,7 +7,7 @@ For each model served by the gateway, periodically measure how smart it is and h
 ## Scope
 
 In scope:
-- Intelligence score per dimension and overall ([benchmark.md](benchmark.md), [metrics.md](metrics.md)).
+- Intelligence score per dimension and overall, for each model at each reasoning effort ([benchmark.md](benchmark.md), [metrics.md](metrics.md)).
 - Runtime: per-question latency, time to first token, wall time per run, availability.
 - History of both, per model and per dimension.
 - Public read-only JSON API and a minimal web page.
@@ -29,10 +29,12 @@ Out of scope (do not add):
 |---|---|
 | Gateway | The cliproxyapi OpenAI-compatible endpoint under test |
 | Model | A model id returned by the gateway's model list (`gateway.models_url`, [config.md](config.md#settings)) |
+| Effort | Reasoning effort sent with the request: `default` (nothing sent), `low`, `medium`, `high` |
+| Target | A model plus an effort. The unit that is scheduled, run, scored and charted. Written `model@effort` |
 | Dimension | One of six question groups ([benchmark.md](benchmark.md#dimensions)) |
 | Question | One generated prompt with a machine-checkable answer |
-| Round | One scheduled batch; all models in it get identical questions (shared seed) |
-| Run | One model's full question set inside one round |
+| Round | One scheduled batch; all targets in it get identical questions (shared seed) |
+| Run | One target's full question set inside one round |
 | Result | One model's answer to one question |
 | Tier | Schedule class of a model ([scheduling.md](scheduling.md#tiers)) |
 | Dataset version | Label for the question templates and scoring rules ([benchmark.md](benchmark.md#dataset-versioning)) |

@@ -25,6 +25,7 @@ runs(
   id INTEGER PRIMARY KEY,
   round_id INTEGER NOT NULL REFERENCES rounds(id),
   model TEXT NOT NULL REFERENCES models(id),
+  effort TEXT NOT NULL,         -- 'default' | 'low' | 'medium' | 'high'
   params TEXT NOT NULL,         -- JSON: max_tokens, timeout_s, reasoning/sampling settings actually sent
   started_at REAL, finished_at REAL,
   status TEXT NOT NULL,         -- see metrics.md
@@ -51,7 +52,7 @@ results(
 );
 ```
 
-Indexes: `runs(model, started_at)`, `runs(round_id)`, `results(run_id)`, `rounds(started_at)`.
+Indexes: `runs(model, effort, started_at)`, `runs(round_id)`, `results(run_id)`, `rounds(started_at)`.
 
 The dataset version of a run is `rounds.dataset_version` via `runs.round_id`.
 

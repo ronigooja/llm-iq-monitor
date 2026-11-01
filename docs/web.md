@@ -13,14 +13,15 @@ Minimal, static, no build step, no runtime dependencies. Data comes only from th
 
 ### `/` Overview
 
-- One table. Rows: active models sorted by `overall` descending. Columns: model, overall, availability, then one column per dimension.
+- One table. Rows: targets (model plus effort) of active models, sorted by `overall` descending; the effort is shown next to the model id. Columns: model, overall, availability, then one column per dimension.
 - Each dimension cell shows `score · p50 latency`, for example `91.7 · 14s`.
 - Tier B models are shown dimmed. Columns sortable by click.
 - Footer: dataset version, last round time.
 
 ### `/m/{model}` Model page
 
-- Header: model id, latest overall, availability, last run time.
+- Header: model id, latest overall per effort, availability, last run time.
+- Effort switch: one tab per tested effort; charts show the selected effort. A toggle overlays all efforts of the model in the same chart.
 - Range switch: 7d, 30d, 90d, all.
 - One block per dimension plus overall: two small line charts side by side — score history and latency p50 history.
 - One availability chart at the bottom.
