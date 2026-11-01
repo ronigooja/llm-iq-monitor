@@ -32,6 +32,7 @@ async def run_model(model: str, *, settings, conn=None, db=None, gateway=None,
     gateway = gateway or _lazy("llm_iq_monitor.gateway").Gateway(
         _v(settings.gateway, "base_url"), _v(settings.gateway, "api_key"), timeout=_v(settings.run, "timeout_s"))
     price = await _price(db, conn, model)
+    rtt = await _rtt(gateway, settings)
     out = []
     for effort in efforts:
         params["reasoning_effort"] = effort
@@ -39,14 +40,16 @@ async def run_model(model: str, *, settings, conn=None, db=None, gateway=None,
                              dataset_version=dataset_version, trigger=trigger,
                              dims=json.dumps(dimensions), params=json.dumps(params),
                              price_in=price[1] if price else None, price_out=price[2] if price else None,
-                             price_fetched_at=price[3] if price and len(price) > 3 else None,
-                             started_at=time.time(), status="running")
+                              price_fetched_at=price[3] if price and len(price) > 3 else None,
+                              started_at=time.time(), status="running", rtt_ms=rtt)
         had_error = False
         reasoning = False
         unsupported = False
         try:
             for dim in dimensions:
-                questions = await _generate(dim, seed)
+                questions = _generate(dim, seed)
+                if inspect.isawaitable(questions):
+                    questions = await questions
                 for question in questions:
                     started = time.perf_counter()
                     try:
@@ -79,7 +82,9 @@ async def run_model(model: str, *, settings, conn=None, db=None, gateway=None,
                 break
             if not unsupported:
                 await _call(db.finish_run, conn, run_id, status="partial" if had_error else "ok",
-                            effort_applied=int(reasoning))
+                            effort_applied=int(reasoning), finished_at=time.time())
+                aggregate = _lazy("llm_iq_monitor.aggregate")
+                await _call(aggregate.finalize_run, conn, run_id)
         except Exception:
             await _call(db.finish_run, conn, run_id, status="aborted", effort_applied=None)
             raise
@@ -119,5 +124,12 @@ def _question_version():
         from llm_iq_monitor.questions.base import DATASET_VERSION
         return DATASET_VERSION
     except ImportError: return "v1"
+
+
+async def _rtt(gateway, settings):
+    measure = getattr(gateway, "connect_rtt_ms", None)
+    if measure is None:
+        return _v(settings.net, "rtt_fallback_ms", 30)
+    return await _call(measure, _v(settings.net, "rtt_fallback_ms", 30), 3)
 
 run = run_model
