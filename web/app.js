@@ -104,12 +104,15 @@
 
     const fg = css('--fg'), muted = css('--muted'), accent = css('--accent'), line = css('--line');
     const marks = versionMarks(rows);
+    const t0 = rows[0].t, t1 = rows[rows.length - 1].t;
+    const pad = t1 === t0 ? 6 * 3600 : (t1 - t0) * 0.03;
+    const xMin = t0 - pad, xMax = t1 + pad;
     const data = [rows.map(r => r.t), rows.map(r => r.score), rows.map(r => r.latency_p50)];
     new uPlot({
       width: Math.max(300, target.clientWidth), height: 240,
       cursor: { drag: { x: false, y: false } },
       scales: {
-        x: { time: true, range: (u, min, max) => (min === max ? [min - 3600, max + 3600] : [min, max]) },
+        x: { time: true, auto: false, min: xMin, max: xMax },
         score: { range: [0, 100] },
         latency: { range: (u, min, max) => [0, Math.max((max || 0) * 1.15, 1)] },
       },
