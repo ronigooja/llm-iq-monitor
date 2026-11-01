@@ -42,7 +42,7 @@ class Gateway:
     def __init__(self, base_url: str, api_key: str | None = None,
                  *, timeout: float = 600, client: httpx.AsyncClient | None = None):
         self.base_url = base_url.rstrip("/")
-        self.api_key = api_key
+        self.api_key = api_key.get_secret_value() if hasattr(api_key, "get_secret_value") else api_key
         self.timeout = timeout
         self._client = client
         self._owned = client is None

@@ -78,3 +78,12 @@ async def test_rtt_uses_median(monkeypatch):
     monkeypatch.setattr("llm_iq_monitor.gateway.time.perf_counter", lambda: next(clock))
     result = await Gateway("http://127.0.0.1").connect_rtt_ms(99, attempts=3)
     assert result == pytest.approx(2)
+
+
+def test_secret_str_key_is_unwrapped_in_auth_header():
+    import httpx
+    from pydantic import SecretStr
+    from llm_iq_monitor.gateway import Gateway
+
+    gw = Gateway("http://x/v1", SecretStr("abc123"))
+    assert gw.api_key == "abc123"

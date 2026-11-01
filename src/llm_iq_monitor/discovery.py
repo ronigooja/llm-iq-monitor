@@ -4,6 +4,8 @@ import httpx
 
 
 async def list_models(base_models_url, api_key, client=None):
+    if hasattr(api_key, "get_secret_value"):
+        api_key = api_key.get_secret_value()
     own = client is None
     if own: client = httpx.AsyncClient()
     try:
