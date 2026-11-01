@@ -17,7 +17,7 @@ from apscheduler.triggers.cron import CronTrigger
 from pydantic import SecretStr
 
 from .db import connect
-from .prices import load_price_index
+from .prices import load_price_index, refresh_prices
 from .settings import DIMS, EFFORTS, ModelSettings, Settings, save_api_key, save_settings
 
 
@@ -123,6 +123,16 @@ def validate_for_save(settings: Settings, model_ids: list[str], *, price_index: 
     return warnings
 
 
+def ensure_prices(settings: Settings, output: Callable[[str], None] = print) -> dict[str, Any]:
+    """Fetch the price list once when the cache is empty (the runner does it only at startup)."""
+    conn = connect()
+    try:
+        asyncio.run(refresh_prices(conn, settings.prices.url))
+    except Exception as exc:
+        output(f"Price fetch failed: {exc}")
+    return load_price_index(conn)
+
+
 def _ask(q: Any, name: str, *args: Any, **kwargs: Any) -> Any:
     return getattr(q, name)(*args, **kwargs).ask()
 
@@ -149,10 +159,16 @@ def run_menu(settings: Settings | None = None, *, q: Any = questionary, output: 
                 try: output(str(asyncio.run(test_connection(settings))))
                 except Exception as exc: output(f"Connection failed: {exc}")
         elif section == 2:
+            if not price_index:
+                price_index = ensure_prices(settings, output)
             try: model_ids = asyncio.run(model_fetcher(settings))
             except Exception as exc: output(f"Model fetch failed: {exc}"); continue
             for row in model_rows(settings, model_ids, price_index): output(f"{row['id']}: {row['state']}, interval {row['interval_h']}h, dims={row['dims']}, efforts={row['efforts']}" + ("" if row["priced"] else " (no price)"))
-            checked = _ask(q, "checkbox", "Enable priced models", choices=[m for m in model_ids if m in price_index])
+            priced = [m for m in model_ids if m in price_index]
+            if not priced:
+                output("No model has a price yet. Check the price URL and network, then reopen this section.")
+                continue
+            checked = _ask(q, "checkbox", "Enable priced models", choices=priced)
             set_enabled(settings, checked, True, price_index)
             if checked and _ask(q, "confirm", "Edit one model?", default=False):
                 model_id = _ask(q, "select", "Model", choices=checked)

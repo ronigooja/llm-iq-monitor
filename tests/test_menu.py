@@ -39,3 +39,29 @@ def test_ticks_and_save_validation_warnings():
     ticks = next_heartbeat_ticks("0 * * * *", now=datetime(2026, 1, 1, 0, 1, tzinfo=timezone.utc))
     assert len(ticks) == 5
     assert ticks[0].hour == 1
+
+
+def test_models_section_without_prices_does_not_open_empty_checkbox(monkeypatch):
+    from llm_iq_monitor import menu
+
+    monkeypatch.setattr(menu, "ensure_prices", lambda settings, output=print: {})
+    asked, out = [], []
+
+    class Ask:
+        def __init__(self, value): self.value = value
+        def ask(self): return self.value
+
+    class Q:
+        def __getattr__(self, name):
+            def call(*args, **kwargs):
+                asked.append(name)
+                if name == "select":
+                    return Ask("2 Models" if asked.count("select") == 1 else "6 Quit")
+                return Ask("" if name in ("text", "password") else False)
+            return call
+
+    async def fetch(settings): return ["m1"]
+
+    menu.run_menu(menu.Settings(), q=Q(), output=out.append, model_fetcher=fetch, price_index={})
+    assert "checkbox" not in asked
+    assert any("No model has a price" in line for line in out)
