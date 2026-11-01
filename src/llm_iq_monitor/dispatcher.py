@@ -27,8 +27,20 @@ class Dispatcher:
             effective = self.settings.effective(model)
             if not _get(effective, "enabled", False) or model in self.active or model in self.queue:
                 continue
-            if self.db and hasattr(self.db, "lookup") and not self.db.lookup(model):
-                continue
+            if self.db:
+                lookup = getattr(self.db, "lookup", None)
+                if lookup is None:
+                    try:
+                        from .prices import lookup as price_lookup
+                        lookup = lambda model: price_lookup(self.db, model)
+                    except ImportError:
+                        lookup = None
+                if lookup is not None:
+                    value = lookup(model)
+                    if inspect.isawaitable(value):
+                        value = await value
+                    if not value:
+                        continue
             previous = self.last_trigger.get(model)
             if previous is None and self.db:
                 previous = await self._last_trigger(model)
@@ -50,7 +62,8 @@ class Dispatcher:
     async def _models(self):
         if hasattr(self.settings, "gateway"):
             import llm_iq_monitor.discovery as discovery
-            return await discovery.list_models(self.settings.gateway.models_url, self.settings.gateway.api_key)
+            value = discovery.list_models(self.settings.gateway.models_url, self.settings.gateway.api_key)
+            return await value if inspect.isawaitable(value) else value
         return []
 
     async def _last_trigger(self, model):
@@ -63,6 +76,7 @@ class Dispatcher:
             if inspect.isawaitable(value): await value
 
     async def _ensure_workers(self):
+        self._workers = [worker for worker in self._workers if not worker.done()]
         limit = int(_get(self.settings.run, "parallel_models", 1))
         while len(self._workers) < limit:
             self._workers.append(asyncio.create_task(self._worker()))
