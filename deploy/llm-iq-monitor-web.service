@@ -1,0 +1,15 @@
+[Unit]
+Description=LLM IQ Monitor Datasette web service
+After=network-online.target
+
+[Service]
+Type=simple
+User=llm-iq-monitor
+Group=llm-iq-monitor
+WorkingDirectory=/opt/llm-iq-monitor
+Environment=LLM_IQ_DATA_DIR=/var/lib/llm-iq-monitor
+ExecStart=/opt/llm-iq-monitor/.venv/bin/python -m datasette serve /var/lib/llm-iq-monitor/monitor.db --host 127.0.0.1 --port 2839 --metadata /opt/llm-iq-monitor/deploy/metadata.yaml --cors --static /opt/llm-iq-monitor/web --template-dir /opt/llm-iq-monitor/deploy/templates
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,17 @@
+[Unit]
+Description=LLM IQ Monitor runner
+After=network-online.target
+
+[Service]
+Type=simple
+User=llm-iq-monitor
+Group=llm-iq-monitor
+WorkingDirectory=/opt/llm-iq-monitor
+Environment=LLM_IQ_CONFIG_DIR=/etc/llm-iq-monitor
+Environment=LLM_IQ_DATA_DIR=/var/lib/llm-iq-monitor
+EnvironmentFile=/etc/llm-iq-monitor/secrets.env
+ExecStart=/opt/llm-iq-monitor/.venv/bin/python -m llm_iq_monitor.runner
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
