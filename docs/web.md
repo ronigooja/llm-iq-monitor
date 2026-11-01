@@ -11,6 +11,10 @@ One static page served by Datasette (`--static` for assets, a template override 
 - No attribution or disclaimer text.
 - Capabilities are the six dimensions ([benchmark.md](benchmark.md#dimensions)). There is no overall score.
 
+## Cache
+
+Cloudflare caches `/static/*` for hours. After changing `web/app.js` or `web/style.css`, bump the `?v=` query on their URLs in `deploy/templates/index.html`.
+
 ## Layout
 
 Top of the page: two tabs, **Scores** and **Compare**, the tab in the URL hash (`#scores`, `#compare`), and a range switch (7d, 30d, 90d, all) for the Scores tab. Footer: dataset version and time of the last finished run.
