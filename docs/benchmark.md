@@ -1,6 +1,6 @@
 # Benchmark
 
-70 questions per run, six dimensions, all machine-scored.
+70 questions per full run, six dimensions, all machine-scored.
 
 ## Dimensions
 
@@ -17,18 +17,20 @@ Templates per dimension (each question fills a template with seeded random param
 
 - `trap`: car-wash (answer: drive) ×2; car-wash negative control where walking is correct ×1; count a letter in a word ×3; compare decimals such as 9.11 vs 9.9 ×2; "all but N" ×2; same-weight different-material ×2.
 - `math`: modular exponentiation ×3; inclusion–exclusion count ×3; digit sum of a large product ×2; gcd + lcm ×2; lattice paths avoiding a point ×2.
-- `logic`: ordering from mixed taller/shorter facts ×3; day-of-week after/before N days ×3; same-colour draw probability as a reduced fraction ×3; alternating-operation recurrence ×3.
+- `logic`: ordering from mixed taller/shorter facts ×3; day of week after/before N days ×3; same-colour draw probability as a reduced fraction ×3; alternating-operation recurrence ×3.
 - `code`: ten small functions (index-filtered sum, longest run, second largest distinct, balanced brackets, run-length encoding, anagram, flatten, prime count, rotate, merge intervals). Each has 10 hidden tests generated from a reference implementation, including edge cases.
 - `instruction`: a short writing task plus 3–4 verifiable rules drawn from: exact bullet count, exact sentence count, all lowercase, no commas, keyword exactly N times, forbidden word, max words, required ending phrase.
 - `science`: closed-form physics and chemistry calculations with seeded parameters (ideal gas, kinetic energy, half-life, pH, resistors, projectile, molar mass, dilution, Coulomb force, specific heat, photon energy).
 
-Seahorse-emoji style questions are not used: they have no unambiguous machine-checkable answer.
+Excluded: the SVG/pelican test and seahorse-emoji questions (no unambiguous machine-checkable answer).
+
+A model can run a subset of dimensions ([config.md](config.md#per-model-settings)). The question numbering stays the same.
 
 ## Generation
 
-- Every question is generated from `(dataset_version, round_seed, dimension, index)`. Same inputs give identical questions, expected answers, and tests.
-- The round seed is shared by all models in a round, so models are compared on identical questions.
-- Seeds differ between rounds, so memorised answers do not help. Parameter ranges are fixed per template to keep difficulty comparable across rounds.
+- Every question is generated from `(dataset_version, seed, dimension, index)`. Same inputs give identical questions, expected answers and tests.
+- The seed is the UTC date of the triggering heartbeat tick ([scheduling.md](scheduling.md#execution)), so models run on the same day are compared on identical questions.
+- Seeds differ between days, so memorised answers do not help. Parameter ranges are fixed per template to keep difficulty comparable across days.
 - Expected answers are computed by the generator, never written by hand.
 
 ## Output protocol
@@ -52,7 +54,7 @@ A reply cut off by the token limit (`finish_reason = length`) is incorrect, not 
 
 ## Dataset versioning
 
-- `dataset_version` is a string such as `v1`. It is stored on every round ([data-model.md](data-model.md)).
-- Bump it when any template, parameter range, question count, scoring rule, or output protocol changes. Do not bump it for infrastructure changes.
-- Scores from different versions are not comparable. The API exposes the version and the web page marks version changes on charts ([web.md](web.md#charts)).
-- Rolling out a new version: run it in a dry run first, then switch the scheduler; old data stays untouched.
+- `dataset_version` is a string such as `v1`, stored on every run ([data-model.md](data-model.md)).
+- Bump it when any template, parameter range, question count, scoring rule or output protocol changes. Do not bump it for infrastructure changes.
+- Scores from different versions are not comparable. The API exposes the version and the website marks version changes on charts ([web.md](web.md#charts)).
+- Rolling out a new version: dry-run it with the CLI first, then switch; old data stays untouched.

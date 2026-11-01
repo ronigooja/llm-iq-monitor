@@ -1,53 +1,58 @@
 # Scheduling
 
-Values live in [config.md](config.md#settings); this doc defines behaviour.
+Values live in [config.md](config.md); this doc defines behaviour.
 
-## Tiers
+## Heartbeat
 
-| Tier | Models | Trigger |
-|---|---|---|
-| A | Models resolved to A | `schedule.tier_a_cron` |
-| B | Models resolved to B | `schedule.tier_b_cron` |
+- One global cron, `schedule.heartbeat_cron`, UTC. It does not run anything by itself; each tick only asks which models are due.
+- Jobs (APScheduler 3.x `AsyncIOScheduler`, not persisted): the heartbeat, the daily price refresh ([cost.md](cost.md#price-source)), and a daily maintenance job (reply cleanup and backup, [data-model.md](data-model.md#retention)).
+- Job options: `max_instances = 1`, `coalesce = true`, `misfire_grace_time = 15 min`. A tick missed by more than that is dropped; models that were due are simply picked up at the next tick.
+- Changing the heartbeat cron in settings rebuilds the heartbeat job on reload.
 
-Tier resolution and trigger defaults: [config.md](config.md#settings). A tier is assigned per model and applies to all of the model's efforts. A tier-B trigger that coincides with a tier-A trigger runs as one round.
+## Due check
 
-Model discovery:
-- Source: `gateway.models_url` at round start.
-- Each listed model gets its tier and efforts from [config.md](config.md#settings); models resolved to "not tested" are skipped.
-- A model absent from the list is marked inactive; its history stays.
-- A new model follows `models.default_tier` until assigned.
-- Targets are the models times their efforts.
+On every tick, for each enabled model, in this order:
+1. Skip it if it has no current price ([cost.md](cost.md#price-lookup)) or is absent from the gateway model list.
+2. Skip it if its previous cycle is running or queued.
+3. It is due if it never ran, or `tick_time − last_trigger_at ≥ interval_h` ([config.md](config.md#per-model-settings)).
 
-## Round execution
+A due model gets `last_trigger_at = tick_time` and is queued. The comparison uses tick times, not the wall-clock start of the cycle, so a cycle that starts late or runs long does not push the next one back by a heartbeat. The interval therefore resolves to the heartbeat period: with an hourly heartbeat, a 6 h interval fires every 6th tick.
 
-- Round seed: the scheduled time, `YYYYMMDDHH` (UTC), shared by all models in the round ([benchmark.md](benchmark.md#generation)).
-- Targets run in parallel up to `run.parallel_models`, but two efforts of the same model never run at the same time. Within a target, questions run one at a time, so a target's own load does not distort its latency.
-- If a round is still running at the next trigger, the trigger is skipped and logged.
-- On startup, rounds and runs left `running` become `aborted`.
-- Manual run: CLI, same code path, `trigger = 'manual'`.
+Intervals shorter than the heartbeat period behave as one heartbeat period. A newly enabled model is due at the next tick.
+
+## Execution
+
+- Queue: FIFO. Up to `run.parallel_models` models run at once.
+- A cycle for a model: for each selected effort, in the order low, medium, high, run the model's selected dimensions. Efforts of one model never overlap; questions within a run are serial, so a model's own load does not distort its latency.
+- Question seed: the UTC date of the tick that triggered the cycle ([benchmark.md](benchmark.md#generation)). All models triggered on the same day get identical questions; repeated cycles on the same day repeat the questions, which also exposes run-to-run variance.
+- On startup, runs left `running` become `aborted`; queued work is dropped and recomputed at the next tick.
+- Manual run: CLI, same code path, `trigger = 'manual'`, limited to chosen models, ignores intervals.
 
 ## Request parameters
 
-From `run.timeout_s`, `run.max_tokens` and the target's effort ([config.md](config.md#settings)). How the effort is sent to the gateway is open: [decisions.md](decisions.md). Streaming is always on. No retries ([metrics.md](metrics.md#errors)). The values actually sent are stored in `runs.params` ([data-model.md](data-model.md)), so history stays interpretable after a setting changes.
+Sent to `POST {gateway.base_url}/chat/completions`:
+
+| Field | Value |
+|---|---|
+| `model` | The model id as listed. The CLIProxyAPI model-name suffix syntax (`model(high)`) is not used: it overrides body fields and would hide the effort from `runs.params` |
+| `stream` | `true`, with usage requested in the final chunk |
+| `max_tokens` | `run.max_tokens` |
+| `reasoning_effort` | `low`, `medium` or `high`; always sent |
+
+The timeout is `run.timeout_s`. No retries ([metrics.md](metrics.md#errors)). The fields actually sent are stored in `runs.params` ([data-model.md](data-model.md)), so history stays interpretable after a setting changes.
+
+Gateway behaviour behind this is taken from CLIProxyAPI v8.0.48 source and docs; the gateway is CLIProxyAPI, the deployed version is not verified. `reasoning_effort` works for GPT and Claude models and is translated to the upstream format. Reasoning text arrives in `delta.reasoning_content`, answer text in `delta.content`, reasoning token count in `usage.completion_tokens_details.reasoning_tokens`.
 
 ## Token budget
 
-Estimates, not measurements. Replace with measured numbers after the first full round.
+Estimates, not measurements. Replace with measured numbers after the first full cycle.
 
-Per run (70 questions): input about 12k tokens; output about 25k without extended thinking, about 100k with it; hard cap `70 × run.max_tokens` (573k at the default).
+Per run (70 questions, all dimensions): input about 12k tokens; output about 25k without extended thinking, about 100k with it; hard cap `70 × run.max_tokens` (573k at the default). A run with fewer dimensions scales down proportionally.
 
-Every effort multiplies the cost: with the default four efforts, one model is four runs per round, so token use is about four times the model-only figures. Cut it by setting fewer efforts globally or per model.
+```
+runs per day = sum over enabled models of (24 / interval_h × selected efforts)
+```
 
-27 models were listed by the gateway on 2026-11-02.
+Example: 10 models, 6 h interval, 3 efforts each = 120 runs per day, about 1.4M input and 3M–12M output tokens per day. 27 models were listed by the gateway on 2026-11-02; 22 of them have a price ([cost.md](cost.md#price-lookup)).
 
-Per day, for model-run counts before multiplying by efforts:
-
-| Plan | Runs per day at 1 effort | Input per day | Output per day |
-|---|---:|---:|---:|
-| All 27 models every 6 h | 108 | ~1.3M | ~2.7M–10.8M |
-| All 27 models once a day | 27 | ~0.33M | ~0.7M–2.7M |
-| About 10 in tier A every 6 h, the rest daily | ~57 | ~0.7M | ~1.4M–5.7M |
-
-Multiply each row by the number of efforts per model. Example: the last plan with 4 efforts is ~228 runs per day, ~2.8M input, ~5.7M–23M output.
-
-Monetary cost depends on how the gateway bills and is not estimated here.
+The menu shows this estimate when intervals, models, dimensions or efforts change ([config.md](config.md#interactive-menu)). Monetary cost depends on how the gateway bills and is not estimated here.

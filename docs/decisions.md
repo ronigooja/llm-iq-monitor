@@ -4,37 +4,44 @@
 
 | Decision | Detail |
 |---|---|
-| Scope | Intelligence and runtime only ([overview.md](overview.md#scope)) |
+| Scope | Intelligence, runtime and cost only ([overview.md](overview.md#scope)). Cost is not ranked |
 | Purpose | Model routing |
-| Targets | Models of the local cliproxyapi gateway |
-| Gateway defaults | Base URL `https://ai.nodemgr.uk/v1`; models loaded from `https://ai.nodemgr.uk/v1/models` ([config.md](config.md#settings)) |
-| Configuration | Main settings are editable through an interactive CLI menu ([config.md](config.md#interactive-menu)) |
-| Host | `ssh root@50.114.114.252` ([deployment.md](deployment.md#host)) |
-| Public | API and web page are public |
-| Third-party data | No comparison with Artificial Analysis or other leaderboards |
-| Domain and nginx | `iq.z0e.dev`, already configured ([deployment.md](deployment.md#nginx)) |
-| Base frequency | Every 6 hours |
+| Gateway | `ai.nodemgr.uk` is CLIProxyAPI. Base URL `https://ai.nodemgr.uk/v1`, models from `https://ai.nodemgr.uk/v1/models` |
+| Scheduling | One global heartbeat cron (default hourly); each model has its own interval, default 6 h, shared by its efforts ([scheduling.md](scheduling.md)) |
+| Concurrency | Settable in the menu: models run at the same time, default 3 |
+| Per-model settings | Enabled (default off), interval, dimensions (multi), efforts (multi). No A/B tiers ([config.md](config.md#per-model-settings)) |
+| Efforts | `low`, `medium`, `high` only; no `default`. A newly enabled model starts with `medium`. Each effort is its own target |
+| Question seed | The UTC date |
+| Config menu | Interactive CLI menu for the main settings ([config.md](config.md#interactive-menu)) |
+| API | Datasette; no hand-built API. Ranking per capability with score, latency and cost ([api.md](api.md)) |
+| Website | One page, two tabs: Scores (model cards, one chart each, buttons for capability and effort) and Compare (capability cards, horizontal bar ranking) ([web.md](web.md)) |
+| Cost | Shown as cost per correct answer, per capability, as text next to score and latency; no cost ranking. Prices from models.dev, refreshed daily. No alias mapping: models without a price cannot be enabled ([cost.md](cost.md)) |
+| Public output | Derived costs only; no unit prices. No attribution or disclaimer text on the site |
+| Open source first | Reuse maintained libraries ([architecture.md](architecture.md#dependencies)) |
+| Host | `ssh root@50.114.114.252`; nginx for `iq.z0e.dev` already configured ([deployment.md](deployment.md)) |
+| Public | API and website are public |
+| Third-party leaderboards | No comparison with Artificial Analysis or others |
 | Excluded tests | SVG/pelican test |
-| Tier choice | Every model can be assigned to tier A or B individually ([config.md](config.md#settings)) |
-| Reasoning effort | Different efforts of a model are all tested, each as its own target ([overview.md](overview.md#glossary)) |
 | Connectivity check | Not needed before building the client |
 | Repo | Name `llm-iq-monitor`, location `/Users/zhuwei/Terminal/llm-iq-monitor` |
 
-## Open (defaults apply until the user decides)
+## Decided by the agent from research (change on request)
 
-Tier membership, reasoning effort, token limit, and schedule are now settings in [config.md](config.md#settings), so they can be changed without a code change; only their initial defaults are open.
+| Decision | Basis |
+|---|---|
+| `reasoning_effort` body field, always sent | CLIProxyAPI source and docs ([scheduling.md](scheduling.md#request-parameters)) |
+| Effort support checked in two layers (HTTP 400, then reasoning tokens) | Gateway can silently downgrade or ignore ([metrics.md](metrics.md#effort-support)) |
+| Datasette canned queries, Runner and Web as separate processes | Verified locally ([api.md](api.md#exposure-rules)) |
+| APScheduler 3.x, jobs not persisted; httpx for streaming; no evaluation framework | [architecture.md](architecture.md#dependencies) |
+| Science dimension uses seeded calculation problems, not sampled GPQA | GPQA is public and likely memorised ([benchmark.md](benchmark.md#dimensions)) |
+| Interval compared on heartbeat tick times | Avoids drift by one tick ([scheduling.md](scheduling.md#due-check)) |
+
+## Open (defaults apply until the user decides)
 
 | # | Question | Default | Affects |
 |---|---|---|---|
-| 1 | Two-tier schedule (A every 6 h, B daily) or all models every 6 h | Two tiers | [scheduling.md](scheduling.md#tiers), token budget |
-| 2 | Initial tier A list | Empty, so every model starts in tier B until set in the menu | `models.tier_a` |
-| 10 | How an effort is sent to the gateway: OpenAI `reasoning_effort` field, Anthropic-style thinking budget, or per-effort model aliases exposed by the gateway | Send `reasoning_effort` and let the gateway map it; check the gateway docs or model list before coding | [scheduling.md](scheduling.md#request-parameters) |
-| 11 | Efforts to test by default | `default`, `low`, `medium`, `high` for every model; models that reject an effort are recorded as unsupported | [config.md](config.md#settings), token budget |
-| 3 | Initial max output tokens | 8192; high efforts may be truncated, which scores as incorrect | Comparability of thinking models |
-| 4 | Science dimension: seeded calculation problems, or sampled GPQA multiple choice as first proposed | Seeded calculations (GPQA is public and likely memorised) | [benchmark.md](benchmark.md#dimensions) |
-| 5 | Code sandbox: one-shot Docker containers, or host-level `unshare` + unprivileged uid | Docker | [deployment.md](deployment.md#code-sandbox) |
-| 6 | Remote repo: create on GitHub (account `ronigooja`), and private or public | Private. Public code would reveal the question generators | Repo |
-| 7 | Add a routing helper endpoint (filter and rank by score and latency) | Not in v1; consumers use `/latest` | [api.md](api.md) |
-| 8 | Latency vantage point: host-to-gateway only, or also a second probe location | Host only | [metrics.md](metrics.md#principles) |
-
-Resolved by the menu design: who enters the gateway key. The user types it into the menu on the host; the agent never handles it ([deployment.md](deployment.md#secrets)).
+| 1 | Code sandbox: one-shot Docker, or nsjail | Docker (already installed), though the runner user then has root-equivalent daemon access | [deployment.md](deployment.md#code-sandbox) |
+| 2 | Max output tokens | 8192; thinking models may be truncated, which scores as incorrect | Comparability of thinking models |
+| 3 | Remote repo on GitHub (account `ronigooja`): create it, and private or public | Private. Public code would reveal the question generators | Repo |
+| 4 | Latency vantage point: host-to-gateway only, or also a second probe location | Host only | [metrics.md](metrics.md#principles) |
+| 5 | Show the dimension count when a model runs only some dimensions | Shown on the Overall card ([web.md](web.md#tab-compare)) | Comparability of `overall` |
