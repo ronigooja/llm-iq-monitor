@@ -38,6 +38,23 @@ _EN_FORBIDDEN = ["cheapest", "guaranteed forever", "miracle", "risk-free"]
 _ZH_CLOSINGS = ["现在就开始轻松生活。", "把喜欢的日常带回家。", "今天就为自己留一点时间。", "让每一次出发都更从容。"]
 _EN_CLOSINGS = ["Make room for better everyday moments.", "Bring a little more ease home.", "Start your next bright moment today.", "Go further, more comfortably."]
 
+_ZH_TASKS = {
+    "product_title_description": "商品标题加商品描述",
+    "social_post": "朋友圈文案",
+    "email_opening": "营销邮件开头",
+    "slogan_explanation": "广告语加一句解释",
+    "event_announcement": "活动通知",
+    "product_blurb": "产品简介",
+}
+_EN_TASKS = {
+    "product_title_description": "product title and description",
+    "social_post": "social media post",
+    "email_opening": "marketing email opening",
+    "slogan_explanation": "slogan with a one-line explanation",
+    "event_announcement": "event announcement",
+    "product_blurb": "product blurb",
+}
+
 _TEMPLATES = (
     "product_title_description",
     "social_post",
@@ -86,20 +103,31 @@ def generate(seed: str, dim: str | None = None) -> list[Question]:
         closing = closings[r.randrange(len(closings))]
         rules = _rules(lang, i, points, forbidden, closing, r)
         if lang == "zh":
-            prompt = (f"请为产品“{product}”写一份{template}文案。目标受众是{audience}，语气要{tone}。"
+            task = _ZH_TASKS[template]
+            prompt = (f"请为产品“{product}”写一份{task}。目标受众是{audience}，语气要{tone}。"
                       f"必须包含卖点：{points[0]}和{points[1]}；不得使用“{forbidden}”。"
                       f"中文字符数需在{rules[0]['min']}至{rules[0]['max']}之间。")
         else:
-            prompt = (f"Write a {template.replace('_', ' ')} for {product}. The audience is {audience};"
+            task = _EN_TASKS[template]
+            prompt = (f"Write a {task} for {product}. The audience is {audience};"
                       f" use a {tone} tone. Include these selling points: {points[0]} and {points[1]};"
                       f" do not use the word or phrase “{forbidden}”. Keep it within {rules[0]['min']}–{rules[0]['max']} words.")
-        if rules[-1]["type"] == "bullet_count":
-            prompt += f" Use exactly {rules[-1]['value']} bullet points."
-        elif rules[-1]["type"] == "paragraph_count":
-            prompt += f" Use exactly {rules[-1]['value']} paragraphs."
+        last = rules[-1]
+        if lang == "zh":
+            if last["type"] == "bullet_count":
+                prompt += f"请恰好使用{last['value']}个要点（每个要点单独一行，以“- ”开头）。"
+            elif last["type"] == "paragraph_count":
+                prompt += f"请恰好分为{last['value']}段，段与段之间空一行。"
+            else:
+                prompt += f"最后一句必须恰好是：{closing}"
         else:
-            prompt += f" End with exactly: {closing}"
-        brief = {"product": product, "audience": audience, "tone": tone, "template": template}
+            if last["type"] == "bullet_count":
+                prompt += f" Use exactly {last['value']} bullet points (one per line, starting with \"- \")."
+            elif last["type"] == "paragraph_count":
+                prompt += f" Use exactly {last['value']} paragraphs separated by a blank line."
+            else:
+                prompt += f" End with exactly this sentence: {closing}"
+        brief = {"task": task, "product": product, "audience": audience, "tone": tone}
         out.append(Question(f"{dimension}-{i + 1:02d}", dimension, prompt, "rules", None,
                             {"rules": rules, "brief": brief, "template": template}))
     return out
