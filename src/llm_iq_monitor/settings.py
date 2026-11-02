@@ -15,9 +15,9 @@ from watchfiles import awatch
 
 log = logging.getLogger(__name__)
 
-DIMS = ("trap", "math", "logic", "code", "instruction", "science")
+DIMS = ("trap", "math", "logic", "code", "instruction", "science", "write_zh", "write_en")
 EFFORTS = ("low", "medium", "high")
-DIM_COUNTS = {"trap": 12, "math": 12, "logic": 12, "code": 10, "instruction": 12, "science": 12}
+DIM_COUNTS = {"trap": 12, "math": 12, "logic": 12, "code": 10, "instruction": 12, "science": 12, "write_zh": 6, "write_en": 6}
 
 
 def config_dir() -> Path:
@@ -111,7 +111,7 @@ class ModelSettings(BaseModel):
 
 class Models(BaseModel):
     default_interval_h: int = Field(default=6, ge=1)
-    default_dims: list[str] = Field(default_factory=lambda: list(DIMS))
+    default_dims: list[str] | None = None
     default_efforts: list[str] = Field(default_factory=lambda: ["medium"])
     per_model: dict[str, ModelSettings] = Field(default_factory=dict, alias="per_model")
 
@@ -131,8 +131,8 @@ class Models(BaseModel):
 
     @field_validator("default_dims")
     @classmethod
-    def valid_default_dims(cls, value: list[str]) -> list[str]:
-        if not value or any(item not in DIMS for item in value) or len(set(value)) != len(value):
+    def valid_default_dims(cls, value: list[str] | None) -> list[str] | None:
+        if value is not None and (not value or any(item not in DIMS for item in value) or len(set(value)) != len(value)):
             raise ValueError(f"default_dims must contain unique values from {DIMS}")
         return value
 
@@ -158,6 +158,18 @@ class Retention(BaseModel):
     reply_days: int = Field(default=14, ge=0)
 
 
+class Judge(BaseModel):
+    model: str = "claude-opus-5-5"
+    effort: str = "low"
+
+    @field_validator("effort")
+    @classmethod
+    def valid_effort(cls, value: str) -> str:
+        if value not in EFFORTS:
+            raise ValueError(f"effort must be one of {EFFORTS}")
+        return value
+
+
 class Settings(BaseModel):
     model_config = ConfigDict(extra="forbid")
     gateway: Gateway = Field(default_factory=Gateway)
@@ -167,6 +179,7 @@ class Settings(BaseModel):
     run: Run = Field(default_factory=Run)
     net: Net = Field(default_factory=Net)
     retention: Retention = Field(default_factory=Retention)
+    judge: Judge = Field(default_factory=Judge)
 
     def effective(self, model_id: str) -> ModelSettings:
         configured = self.models.per_model.get(model_id, ModelSettings())
@@ -175,7 +188,7 @@ class Settings(BaseModel):
         return ModelSettings(
             enabled=configured.enabled,
             interval_h=configured.interval_h or self.models.default_interval_h,
-            dims=configured.dims if configured.dims is not None else list(self.models.default_dims),
+            dims=configured.dims if configured.dims is not None else list(self.models.default_dims or DIMS),
             efforts=configured.efforts if configured.efforts is not None else list(self.models.default_efforts),
         )
 
@@ -212,6 +225,8 @@ def save_settings(settings: Settings) -> None:
     target = config_dir()
     target.mkdir(parents=True, exist_ok=True)
     data = settings.model_dump(mode="json", exclude={"gateway": {"api_key"}}, exclude_none=True)
+    if data["models"].get("default_dims") == list(DIMS):
+        data["models"].pop("default_dims")
     # The public TOML shape uses [models."model-id"], not an extra per_model table.
     model_data = data["models"].pop("per_model", {})
     for model_id, model_settings in model_data.items():
