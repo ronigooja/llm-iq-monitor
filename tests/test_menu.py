@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from llm_iq_monitor.menu import (apply_model_choice, estimate_budget, next_heartbeat_ticks,
                                  set_enabled, validate_for_save)
-from llm_iq_monitor.settings import Settings
+from llm_iq_monitor.settings import DIMS, LEGACY_DIMS, Settings
 
 
 def test_estimate_budget_scales_dimensions_and_efforts():
@@ -15,8 +15,8 @@ def test_estimate_budget_scales_dimensions_and_efforts():
     }
     budget = estimate_budget(settings)
     assert budget["runs_per_day"] == 8
-    assert budget["input_tokens_per_day"] == 46439
-    assert budget["output_tokens_per_day"] == 92878
+    assert budget["input_tokens_per_day"] == 49655
+    assert budget["output_tokens_per_day"] == 99310
     assert budget["judge_calls_per_day"] == 0
 
 
@@ -27,6 +27,25 @@ def test_estimate_budget_counts_writing_judge_calls():
     assert budget["runs_per_day"] == 1
     assert budget["judge_calls_per_day"] == 12
     assert budget["judge_input_tokens_per_day"] == 12000
+
+
+def test_estimate_budget_uses_58_question_run_and_ui_questions():
+    settings = Settings()
+    settings.models.per_model["ui-model"] = {
+        "enabled": True, "interval_h": 24, "dims": ["ui"], "efforts": ["low"],
+    }
+    budget = estimate_budget(settings)
+    assert budget["input_tokens_per_day"] == 344
+    assert budget["output_tokens_per_day"] == 689
+    assert budget["output_tokens_with_thinking_per_day"] == 2758
+    assert budget["judge_calls_per_day"] == 0
+
+
+def test_menu_dimension_choices_exclude_legacy_dimensions():
+    from llm_iq_monitor import menu
+
+    assert not set(LEGACY_DIMS) & set(menu.DIMS)
+    assert set(menu.DIMS) == set(DIMS)
 
 
 def test_model_actions_respect_price_index_and_apply_choices():

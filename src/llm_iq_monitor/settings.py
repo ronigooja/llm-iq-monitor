@@ -15,9 +15,11 @@ from watchfiles import awatch
 
 log = logging.getLogger(__name__)
 
-DIMS = ("trap", "math", "logic", "code", "instruction", "science", "write_zh", "write_en")
+DIMS = ("reasoning", "code", "instruction", "write_zh", "write_en", "ui")
+LEGACY_DIMS = ("trap", "math", "logic", "science")
 EFFORTS = ("low", "medium", "high")
-DIM_COUNTS = {"trap": 12, "math": 12, "logic": 12, "code": 10, "instruction": 12, "science": 12, "write_zh": 6, "write_en": 6}
+DIM_COUNTS = {"reasoning": 18, "code": 12, "instruction": 14, "write_zh": 6, "write_en": 6, "ui": 2,
+              "trap": 12, "math": 12, "logic": 12, "science": 12}
 
 
 def config_dir() -> Path:
@@ -91,8 +93,8 @@ class ModelSettings(BaseModel):
     @field_validator("dims")
     @classmethod
     def valid_dims(cls, value: list[str] | None) -> list[str] | None:
-        if value is not None and (not value or any(item not in DIMS for item in value) or len(set(value)) != len(value)):
-            raise ValueError(f"dims must contain unique values from {DIMS}")
+        if value is not None and (not value or any(item not in DIMS + LEGACY_DIMS for item in value) or len(set(value)) != len(value)):
+            raise ValueError(f"dims must contain unique values from {DIMS + LEGACY_DIMS}")
         return value
 
     @field_validator("efforts")
@@ -132,8 +134,8 @@ class Models(BaseModel):
     @field_validator("default_dims")
     @classmethod
     def valid_default_dims(cls, value: list[str] | None) -> list[str] | None:
-        if value is not None and (not value or any(item not in DIMS for item in value) or len(set(value)) != len(value)):
-            raise ValueError(f"default_dims must contain unique values from {DIMS}")
+        if value is not None and (not value or any(item not in DIMS + LEGACY_DIMS for item in value) or len(set(value)) != len(value)):
+            raise ValueError(f"default_dims must contain unique values from {DIMS + LEGACY_DIMS}")
         return value
 
     @field_validator("default_efforts")
@@ -145,7 +147,7 @@ class Models(BaseModel):
 
 
 class Run(BaseModel):
-    parallel_models: int = Field(default=3, ge=1, le=8)
+    parallel_models: int = Field(default=1, ge=1, le=8)
     timeout_s: int = Field(default=600, ge=1)
     max_tokens: int = Field(default=16384, ge=1)
 
@@ -156,6 +158,10 @@ class Net(BaseModel):
 
 class Retention(BaseModel):
     reply_days: int = Field(default=14, ge=0)
+
+
+class UI(BaseModel):
+    sample_max_age_days: int = Field(default=7, ge=1)
 
 
 class Judge(BaseModel):
@@ -179,6 +185,7 @@ class Settings(BaseModel):
     run: Run = Field(default_factory=Run)
     net: Net = Field(default_factory=Net)
     retention: Retention = Field(default_factory=Retention)
+    ui: UI = Field(default_factory=UI)
     judge: Judge = Field(default_factory=Judge)
 
     def effective(self, model_id: str) -> ModelSettings:
