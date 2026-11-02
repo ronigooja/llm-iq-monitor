@@ -86,6 +86,6 @@ Model-written code is untrusted and must never run in the Runner process. Defaul
 ## Admin console
 
 - Unit `llm-iq-monitor-admin.service` (`deploy/llm-iq-monitor-admin.service`), the only process besides the CLI that writes `settings.toml` and `secrets.env`. The Runner reloads settings by itself.
-- Public through nginx: forward `location /admin/` to `127.0.0.1:2840` without stripping the prefix (`deploy/nginx-admin.conf.example`), with `X-Forwarded-For` set from `$http_cf_connecting_ip` only: the lockout keys on it, and a client-supplied value would bypass it.
+- Public through nginx: forward `location /admin/` to `127.0.0.1:2840` without stripping the prefix (`deploy/nginx-admin.conf.example`). The forwarder in front of nginx hides the client address, so the admin service sees `127.0.0.1` and the lockout is effectively global: 5 wrong logins from anyone lock everyone for 15 minutes. Restarting `llm-iq-monitor-admin` clears it. Do not forward a client-supplied `X-Forwarded-For` (it would let an attacker bypass the lockout).
 - Admin token: `ADMIN_TOKEN` in `/etc/llm-iq-monitor/admin.env` (mode 600, service user), at least 24 characters; the service refuses to start without it. The user reads it with `cat`; the agent never reads it.
 - Session cookie `HttpOnly; Secure; SameSite=Strict; Path=/admin`, 12 h, kept in memory (a restart logs everyone out). Every POST/PUT needs header `X-Admin: 1`. 5 failed logins per client IP lock it for 15 minutes. Responses are `no-store`; the gateway key never appears in a response or log.
