@@ -50,7 +50,8 @@ Buttons and cards use the names from the `dimensions` query: the dimension key p
 
 ## Page: UI (`/ui`)
 
-- A grid of the latest samples, newest first: the SVG shown as an image, model and effort, the prompt, and the stars (read-only by default). Invalid samples show a placeholder.
+- Two sections by question, classic then variant, each headed by its subject (the full prompt is a tooltip). One card per model and effort (model id ascending, then low, medium, high; effort labels are not translated): the newest SVG as an image, model and effort, and the stars (read-only by default). Invalid or replaced samples show a placeholder.
+- History: a card's History button loads that card's older samples on demand (`ui_samples` with `model` and `effort`) and shows up to 6 older thumbnails with date and stars, 7 samples in total with the newest; the same retention as [benchmark.md](benchmark.md#ui-samples).
 - Rating key: a field at the bottom of the page. The key is checked with the `rate` query's authentication ([api.md](api.md#exposure-rules)); if accepted, the page keeps the key in `sessionStorage` (not a cookie, not in the URL) and every sample gets 10 clickable stars. A wrong key shows "key not accepted" and nothing changes.
 - After a click the page sends `rate`, then reads the sample back and shows the stored stars, because an out-of-range value changes nothing.
 - SVG is never inlined into the page DOM: it is set as `<img src="data:image/svg+xml;...">`, so scripts and external loads inside it do not run. The page also sets a strict `Content-Security-Policy` (no inline scripts except the page's own file, `img-src data:`).

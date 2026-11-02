@@ -70,8 +70,8 @@ ui_samples(
   id INTEGER PRIMARY KEY,
   run_id INTEGER NOT NULL REFERENCES runs(id),
   prompt_key TEXT NOT NULL,     -- 'classic' | 'variant'
-  prompt TEXT NOT NULL,         -- the prompt as sent (the variant differs per seed)
-  svg TEXT,                     -- sanitised SVG; null after it was replaced by a newer sample
+  prompt TEXT NOT NULL,         -- the prompt as sent
+  svg TEXT,                     -- sanitised SVG; null once the sample is older than the newest 7 of its target and prompt
   valid INTEGER NOT NULL,       -- 0 when the reply failed the SVG rules
   stars INTEGER,                -- 1..10 or null while unrated
   rated_at REAL,

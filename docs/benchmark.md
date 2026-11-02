@@ -23,7 +23,7 @@ Templates per dimension (each question fills a template with seeded random param
 - `code` (12): the ten small functions (index-filtered sum, longest run, second largest distinct, balanced brackets, run-length encoding, anagram, flatten, prime count, rotate, merge intervals), each with an exact definition, return type and edge cases stated in the prompt; 10 hidden tests each: edge cases, seeded random cases and one large case (60k–500k elements or characters) that defeats quadratic solutions. Bug fixing ×2: the prompt contains the buggy source and 2–3 failing calls (never naming the bug type); the reply is the corrected `solve`; hidden tests go beyond the shown calls. Test files can reach a few MB per question.
 - `instruction` (14): rule-checked writing tasks ×10 from seven task templates (product FAQ, meeting summary, recipe, study plan, apology email, release note, welcome note), 5–7 rules each, always one structure rule (bullets, numbered list, acrostic, line marker, paragraphs, or JSON with N keys) plus keyword-exactly-N, banned words and others (lowercase, no commas, no digits, sentence count, min/max words per sentence, opening and closing phrase, total word range), jointly satisfiable and mutually constraining; JSON extraction ×4 from prose with 12 fields (three date formats, currency amounts with separators, similar-named fields, repeated names, one field absent = null), compared as exactly equal typed objects.
 - `write_zh`, `write_en`: one question per template, six templates per language: e-commerce product title plus description, social-media post, email opening, slogan with a one-line explanation, event announcement, product blurb. Each brief gives product, audience and tone from seeded lists, plus 3–4 verifiable constraints drawn from: length range (Chinese characters or English words), required selling points that must appear, forbidden words, exact number of bullet points or paragraphs, required closing phrase.
-- `ui` (2): see [UI samples](#ui-samples). Prompts require `viewBox="0 0 400 300"`, drawing inside it and at least 8 shapes; the variant is drawn from 20 animal–vehicle pairs.
+- `ui` (2): see [UI samples](#ui-samples). Prompts require `viewBox="0 0 400 300"`, drawing inside it and at least 8 shapes; both subjects are fixed: "a pelican riding a bicycle" and "a penguin driving a tractor".
 
 Excluded: seahorse-emoji questions (no unambiguous machine-checkable answer).
 
@@ -71,13 +71,13 @@ A reply cut off by the token limit (`finish_reason = length`) is incorrect, not 
 
 ## UI samples
 
-The pelican-on-a-bicycle test with variants, rated by a person instead of a machine.
+The pelican-on-a-bicycle test with a second fixed subject, rated by a person instead of a machine.
 
-- Per run, two prompts: the first asks for the classic subject ("a pelican riding a bicycle"); the second asks for a variant drawn from a seeded list of unusual animal–vehicle pairs, so models cannot memorise the answer. Both ask for one self-contained SVG, no scripts, no external resources, a fixed viewBox.
+- Per run, two prompts: the first asks for the classic subject ("a pelican riding a bicycle"); the second asks for a fixed variant ("a penguin driving a tractor"). The prompts never change with the seed, so every model draws the same subjects and samples are comparable. Both ask for one self-contained SVG, no scripts, no external resources, a fixed viewBox.
 - The reply's SVG is stored as a sample ([data-model.md](data-model.md#tables)). Rules before storing: it parses as XML, the root is `svg`, it is at most 200 KB, and it contains no `script`, `foreignObject`, event-handler attributes, `href` to anything other than `#fragment`, or `style` that imports or loads URLs. A reply that fails these is stored as an invalid sample with 0 stars, not as an error.
 - Samples are shown on the UI page as images (`<img>` from a data URL, so nothing inside runs). A person rates each sample 1–10 stars after unlocking the page with the rating key ([web.md](web.md#page-ui-ui), [deployment.md](deployment.md#rating-key)).
 - `score` of `ui` = mean stars × 10 over the rated samples of the run's latest samples, null until at least one is rated. Availability counts the generated samples.
-- To bound the rating work: a target gets a new sample for a prompt only if its previous sample of that prompt has been rated or is older than 7 days. When a newer sample replaces an older one, the older SVG is deleted and only its stars stay in the history.
+- To bound the rating work: a target gets a new sample for a prompt only if its previous sample of that prompt has been rated or is older than 7 days. Per target and prompt, the SVGs of the newest 7 samples are kept (history shown on the UI page); older SVGs are deleted and only their stars stay.
 - `ui` has no judged quality. Human ratings are subjective; they are a reference for routing graphics tasks, not a machine-verified truth.
 
 ## Dataset versioning
