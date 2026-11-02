@@ -32,6 +32,11 @@ async def run_model(model: str, *, settings, conn=None, db=None, gateway=None,
     gateway = gateway or _lazy("llm_iq_monitor.gateway").Gateway(
         _v(settings.gateway, "base_url"), _v(settings.gateway, "api_key"), timeout=_v(settings.run, "timeout_s"))
     price = await _price(db, conn, model)
+    writing = any(dim in ("write_zh", "write_en") for dim in dimensions)
+    judge_settings = getattr(settings, "judge", None)
+    judge_model = getattr(judge_settings, "model", "claude-opus-5-5")
+    judge_effort = getattr(judge_settings, "effort", "low")
+    judge_price = await _price(db, conn, judge_model) if writing else None
     rtt = await _rtt(gateway, settings)
     out = []
     for effort in efforts:
@@ -39,9 +44,12 @@ async def run_model(model: str, *, settings, conn=None, db=None, gateway=None,
         run_id = await _call(db.create_run, conn, model=model, effort=effort, seed=seed,
                              dataset_version=dataset_version, trigger=trigger,
                              dims=json.dumps(dimensions), params=json.dumps(params),
-                             price_in=price[1] if price else None, price_out=price[2] if price else None,
-                              price_fetched_at=price[3] if price and len(price) > 3 else None,
-                              started_at=time.time(), status="running", rtt_ms=rtt)
+                              price_in=price[1] if price else None, price_out=price[2] if price else None,
+                               price_fetched_at=price[3] if price and len(price) > 3 else None,
+                               judge_model=judge_model if writing else None,
+                               judge_price_in=judge_price[1] if judge_price else None,
+                               judge_price_out=judge_price[2] if judge_price else None,
+                               started_at=time.time(), status="running", rtt_ms=rtt)
         had_error = False
         unsupported = False
         try:
@@ -61,7 +69,17 @@ async def run_model(model: str, *, settings, conn=None, db=None, gateway=None,
                                       finish_reason=reply.finish_reason, latency_s=reply.latency_s,
                                       ttft_s=reply.ttft_s, reasoning_ttft_s=reply.reasoning_ttft_s,
                                       in_tok=reply.in_tok, out_tok=reply.out_tok, reasoning_tok=reply.reasoning_tok,
-                                      reply=reply.reply[:2000])
+                                       quality=None, judge_in_tok=None, judge_out_tok=None, judge_latency_s=None,
+                                       reply=reply.reply[:2000])
+                        if question.kind == "rules" and dim in ("write_zh", "write_en"):
+                            from llm_iq_monitor.judge import judge_reply
+                            judged = await judge_reply(
+                                gateway, judge_model, judge_effort, _v(question, "meta", {}).get("brief", {}),
+                                reply.reply, "zh" if dim == "write_zh" else "en",
+                                max_tokens=_v(settings.run, "max_tokens"), timeout=_v(settings.run, "timeout_s"),
+                            )
+                            fields.update(quality=judged.quality, judge_in_tok=judged.in_tok,
+                                          judge_out_tok=judged.out_tok, judge_latency_s=judged.latency_s)
                     except Exception as exc:
                         if getattr(exc, "unsupported", False):
                             await _call(db.finish_run, conn, run_id, status="unsupported")
@@ -71,7 +89,8 @@ async def run_model(model: str, *, settings, conn=None, db=None, gateway=None,
                         fields = dict(qid=question.qid, dim=dim, correct=None,
                                       error=getattr(exc, "error", "network_error"), finish_reason=None,
                                       latency_s=time.perf_counter()-started, ttft_s=None,
-                                      reasoning_ttft_s=None, in_tok=None, out_tok=None, reasoning_tok=None, reply=None)
+                                      reasoning_ttft_s=None, in_tok=None, out_tok=None, reasoning_tok=None,
+                                      quality=None, judge_in_tok=None, judge_out_tok=None, judge_latency_s=None, reply=None)
                     if not unsupported:
                         await _call(db.insert_result, conn, run_id, **fields)
                 else:
