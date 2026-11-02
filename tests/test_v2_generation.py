@@ -6,7 +6,6 @@ import time
 from pathlib import Path
 
 from llm_iq_monitor.questions import DIM_COUNTS, DIMS, generate
-from llm_iq_monitor.questions.ui import PAIRS
 
 ROOT = Path(__file__).parents[1] / "src" / "llm_iq_monitor" / "questions"
 
@@ -49,13 +48,12 @@ def test_generators_use_no_assert_raise_or_while_true():
 
 
 def test_ui_prompts():
-    assert len(set(PAIRS)) >= 16
-    seen = set()
+    prompts = []
     for seed in _daily("2026-01-01", 120):
         classic, variant = generate("ui", seed)
         assert classic.prompt.startswith("Draw a pelican riding a bicycle.")
-        assert "Draw Return" not in classic.prompt + variant.prompt
+        assert variant.prompt.startswith("Draw a penguin driving a tractor.")
         for q in (classic, variant):
             assert 'viewBox="0 0 400 300"' in q.prompt and "at least 8 shape elements" in q.prompt
-        seen.add(variant.meta["pair"])
-    assert len(seen) >= 12
+        prompts.append(variant.prompt)
+    assert len(set(prompts)) == 1
