@@ -1,7 +1,6 @@
 """Harder deterministic reasoning questions."""
 
 import datetime as dt
-import itertools
 import math
 from fractions import Fraction
 
@@ -12,12 +11,54 @@ def _ordering(r):
     names = r.sample(["Ada", "Bao", "Cleo", "Dara", "Eli", "Faye", "Gus", "Hana", "Ivan"], r.randint(7, 9))
     order = names[:]
     r.shuffle(order)
-    facts = [f"{order[i]} is immediately before {order[i + 1]}" for i in range(len(order) - 1)]
-    facts += [f"{names[0]} is not first", f"{names[-1]} is not last"]
-    valid = [p for p in itertools.permutations(names) if all(p.index(a) + 1 == p.index(b) for a, b in (tuple(x.split(" is immediately before ")) for x in facts if "immediately" in x)) and all((p[0] != x.split()[0]) for x in facts if "not first" in x) and all((p[-1] != x.split()[0]) for x in facts if "not last" in x)]
-    assert len(valid) == 1
+    # A few adjacent links use the stronger wording, while the remaining
+    # links use a weaker-looking relation.  Together the adjacent relations
+    # form a total chain, so the order is unique without enumerating n! cases.
+    immediate_positions = set(r.sample(range(len(order) - 1), max(2, len(order) // 3)))
+    before = [(order[i], order[i + 1]) for i in range(len(order) - 1)]
+    if not _unique_linear_extension(names, before):
+        # This should be unreachable for a chain, but keeps the generator
+        # defensive if the construction changes later.
+        return _ordering_fallback(r)
+    facts = [
+        f"{a} is immediately before {b}" if i in immediate_positions else f"{a} is somewhere before {b}"
+        for i, (a, b) in enumerate(before)
+    ]
+    # These facts are deliberately irrelevant to position and act as reading
+    # distractors rather than accidental ordering constraints.
+    distractor_names = [name for name in names if name not in {order[0], order[-1]}]
+    facts.extend([f"{distractor_names[0]} prefers tea", f"{distractor_names[-1]} wears blue"])
     target = r.choice(names)
-    return answer_prompt("Arrange these people from first to last. Facts: " + "; ".join(facts) + f". Who is in position {valid[0].index(target) + 1}?"), "exact", target, {"options": names, "unique": len(valid)}
+    return answer_prompt("Arrange these people from first to last. Facts: " + "; ".join(facts) + f". Who is in position {order.index(target) + 1}?"), "exact", target, {"options": names, "unique": True, "order": order, "immediate_positions": sorted(immediate_positions)}
+
+
+def _unique_linear_extension(names, edges):
+    """Return whether the precedence graph has exactly one topological order."""
+    successors = {name: set() for name in names}
+    indegree = {name: 0 for name in names}
+    for left, right in edges:
+        if right not in successors[left]:
+            successors[left].add(right)
+            indegree[right] += 1
+    remaining = set(names)
+    while remaining:
+        available = [name for name in remaining if indegree[name] == 0]
+        if len(available) != 1:
+            return False
+        current = available[0]
+        remaining.remove(current)
+        for successor in successors[current]:
+            indegree[successor] -= 1
+    return True
+
+
+def _ordering_fallback(r):
+    """Guaranteed-valid small construction used only if validation changes."""
+    order = r.sample(["Ada", "Bao", "Cleo", "Dara", "Eli", "Faye"], 6)
+    facts = [f"{a} is immediately before {b}" for a, b in zip(order, order[1:])]
+    facts.append(f"{order[1]} likes tea")
+    target = order[0]
+    return answer_prompt("Arrange these people from first to last. Facts: " + "; ".join(facts) + f". Who is in position 1?"), "exact", target, {"options": order, "unique": True, "order": order}
 
 
 def generate(seed: str) -> list[Question]:
