@@ -15,8 +15,18 @@ def test_estimate_budget_scales_dimensions_and_efforts():
     }
     budget = estimate_budget(settings)
     assert budget["runs_per_day"] == 8
-    assert budget["input_tokens_per_day"] == 48000
-    assert budget["output_tokens_per_day"] == 100000
+    assert budget["input_tokens_per_day"] == 46439
+    assert budget["output_tokens_per_day"] == 92878
+    assert budget["judge_calls_per_day"] == 0
+
+
+def test_estimate_budget_counts_writing_judge_calls():
+    settings = Settings()
+    settings.models.per_model["writer"] = {"enabled": True, "interval_h": 24, "dims": ["write_zh", "write_en"], "efforts": ["low"]}
+    budget = estimate_budget(settings)
+    assert budget["runs_per_day"] == 1
+    assert budget["judge_calls_per_day"] == 12
+    assert budget["judge_input_tokens_per_day"] == 12000
 
 
 def test_model_actions_respect_price_index_and_apply_choices():
@@ -33,12 +43,44 @@ def test_ticks_and_save_validation_warnings():
     settings.models.per_model["old"] = {"enabled": False, "interval_h": 1}
     settings.models.per_model["new"] = {"enabled": True, "interval_h": 1}
     settings.schedule.heartbeat_cron = "0 */2 * * *"
-    warnings = validate_for_save(settings, ["new"], price_index={"new": object()})
+    warnings = validate_for_save(settings, ["new", "claude-opus-5-5"], price_index={"new": object(), "claude-opus-5-5": object()})
     assert any("unknown model id: old" in warning for warning in warnings)
     assert any("interval shorter than heartbeat: new" in warning for warning in warnings)
     ticks = next_heartbeat_ticks("0 * * * *", now=datetime(2026, 1, 1, 0, 1, tzinfo=timezone.utc))
     assert len(ticks) == 5
     assert ticks[0].hour == 1
+
+
+def test_judge_validation_warns_when_absent_from_model_list():
+    settings = Settings()
+    warnings = validate_for_save(settings, [], price_index={"claude-opus-5-5": object()})
+    assert any("judge model absent" in warning for warning in warnings)
+
+
+def test_judge_section_uses_priced_models_and_effort(monkeypatch):
+    from llm_iq_monitor import menu
+    asked = []
+
+    class Ask:
+        def __init__(self, value): self.value = value
+        def ask(self): return self.value
+
+    class Q:
+        def __getattr__(self, name):
+            def call(*args, **kwargs):
+                asked.append((name, args, kwargs))
+                if name == "select" and args[0] == "Configuration section": return Ask("5 Judge" if len([item for item in asked if item[0] == "select"]) == 1 else "7 Quit")
+                if name == "select" and "Judge model" in args[0]: return Ask("priced-judge")
+                if name == "select" and "Judge effort" in args[0]: return Ask("high")
+                if name == "select": return Ask("7 Quit")
+                return Ask(False)
+            return call
+
+    settings = Settings()
+    menu.run_menu(settings, q=Q(), output=lambda _: None, model_fetcher=lambda _: [], price_index={"priced-judge": object()})
+    assert settings.judge.model == "priced-judge"
+    assert settings.judge.effort == "high"
+    assert any("Judge model" in args[0] for name, args, _ in asked if name == "select")
 
 
 def test_models_section_without_prices_does_not_open_empty_checkbox(monkeypatch):
@@ -56,7 +98,7 @@ def test_models_section_without_prices_does_not_open_empty_checkbox(monkeypatch)
             def call(*args, **kwargs):
                 asked.append(name)
                 if name == "select":
-                    return Ask("2 Models" if asked.count("select") == 1 else "6 Quit")
+                    return Ask("2 Models" if asked.count("select") == 1 else "7 Quit")
                 return Ask("" if name in ("text", "password") else False)
             return call
 

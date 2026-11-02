@@ -18,24 +18,31 @@ from pydantic import SecretStr
 
 from .db import connect
 from .prices import load_price_index, refresh_prices
-from .settings import DIMS, EFFORTS, ModelSettings, Settings, save_api_key, save_settings
+from .settings import DIM_COUNTS, DIMS, EFFORTS, ModelSettings, Settings, save_api_key, save_settings
 
 
 def estimate_budget(settings: Settings) -> dict[str, float | int]:
-    runs = input_tokens = output_tokens = thinking_tokens = 0.0
+    runs = input_tokens = output_tokens = thinking_tokens = judge_calls = judge_input_tokens = judge_output_tokens = 0.0
     for model in settings.models.per_model:
         effective = settings.effective(model)
         if not effective.enabled:
             continue
         model_runs = 24 / effective.interval_h * len(effective.efforts)
-        scale = len(effective.dims) / len(DIMS)
+        question_scale = sum(DIM_COUNTS[dim] for dim in effective.dims) / sum(DIM_COUNTS.values())
+        writing_questions = sum(DIM_COUNTS[dim] for dim in effective.dims if dim in ("write_zh", "write_en"))
         runs += model_runs
-        input_tokens += model_runs * 12000 * scale
-        output_tokens += model_runs * 25000 * scale
-        thinking_tokens += model_runs * 100000 * scale
+        input_tokens += model_runs * 14000 * question_scale
+        output_tokens += model_runs * 28000 * question_scale
+        thinking_tokens += model_runs * 110000 * question_scale
+        judge_calls += model_runs * writing_questions
+        judge_input_tokens += model_runs * writing_questions * 1000
+        judge_output_tokens += model_runs * writing_questions * 1000
     return {"runs_per_day": runs, "input_tokens_per_day": int(input_tokens),
             "output_tokens_per_day": int(output_tokens),
-            "output_tokens_with_thinking_per_day": int(thinking_tokens)}
+            "output_tokens_with_thinking_per_day": int(thinking_tokens),
+            "judge_calls_per_day": int(judge_calls),
+            "judge_input_tokens_per_day": int(judge_input_tokens),
+            "judge_output_tokens_per_day": int(judge_output_tokens)}
 
 
 async def fetch_models(settings: Settings) -> list[str]:
@@ -111,6 +118,10 @@ def validate_for_save(settings: Settings, model_ids: list[str], *, price_index: 
             settings.models.per_model[model_id] = ModelSettings.model_validate(configured)
     Settings.model_validate(settings)
     warnings = [f"unknown model id: {model_id}" for model_id in settings.models.per_model if model_id not in model_ids]
+    if settings.judge.model not in price_index:
+        raise ValueError(f"judge model without a price: {settings.judge.model}")
+    if settings.judge.model not in model_ids:
+        warnings.append(f"judge model absent from model list: {settings.judge.model}")
     # CronTrigger has no simple duration API; compare an interval to the first two ticks.
     ticks = next_heartbeat_ticks(settings.schedule.heartbeat_cron, count=2)
     period_h = (ticks[1] - ticks[0]).total_seconds() / 3600
@@ -145,7 +156,7 @@ def run_menu(settings: Settings | None = None, *, q: Any = questionary, output: 
     section = 1
     first = True
     while True:
-        choices = ["1 Gateway", "2 Models", "3 Defaults and heartbeat", "4 Run limits", "5 Review", "6 Quit"]
+        choices = ["1 Gateway", "2 Models", "3 Defaults and heartbeat", "4 Run limits", "5 Judge", "6 Review", "7 Quit"]
         section = 1 if first else _ask(q, "select", "Configuration section", choices=choices, default=choices[section - 1])
         first = False
         section = int(str(section).split()[0])
@@ -180,7 +191,7 @@ def run_menu(settings: Settings | None = None, *, q: Any = questionary, output: 
             settings.schedule.heartbeat_cron = _ask(q, "text", "Heartbeat cron", default=settings.schedule.heartbeat_cron)
             output("Next five ticks: " + ", ".join(str(t) for t in next_heartbeat_ticks(settings.schedule.heartbeat_cron)))
             settings.models.default_interval_h = int(_ask(q, "text", "Default interval hours", default=str(settings.models.default_interval_h)))
-            settings.models.default_dims = _ask(q, "checkbox", "Default dimensions", choices=list(DIMS), default=settings.models.default_dims)
+            settings.models.default_dims = _ask(q, "checkbox", "Default dimensions", choices=list(DIMS), default=settings.models.default_dims or list(DIMS))
             settings.models.default_efforts = _ask(q, "checkbox", "Default efforts", choices=list(EFFORTS), default=settings.models.default_efforts)
             settings.prices.url = _ask(q, "text", "Price URL", default=settings.prices.url)
             settings.prices.refresh_cron = _ask(q, "text", "Price refresh cron", default=settings.prices.refresh_cron)
@@ -188,6 +199,17 @@ def run_menu(settings: Settings | None = None, *, q: Any = questionary, output: 
             for obj, attr in ((settings.run, "parallel_models"), (settings.run, "timeout_s"), (settings.run, "max_tokens"), (settings.net, "rtt_fallback_ms"), (settings.retention, "reply_days")):
                 setattr(obj, attr, int(_ask(q, "text", attr, default=str(getattr(obj, attr)))))
         elif section == 5:
+            priced = list(price_index)
+            if settings.judge.model not in price_index:
+                output(f"Judge model has no price: {settings.judge.model}")
+            if settings.judge.model not in model_ids:
+                output(f"Judge model is absent from the current model list: {settings.judge.model}")
+            if not priced:
+                output("No priced models available for the judge.")
+            else:
+                settings.judge.model = _ask(q, "select", "Judge model (judge calls add cost)", choices=priced, default=settings.judge.model if settings.judge.model in priced else priced[0])
+            settings.judge.effort = _ask(q, "select", "Judge effort (judge calls add cost)", choices=list(EFFORTS), default=settings.judge.effort)
+        elif section == 6:
             output(str(settings.model_dump(mode="json", exclude={"gateway": {"api_key"}}, exclude_none=True))); output(str(estimate_budget(settings)))
         else:
             if _ask(q, "confirm", "Save settings and exit?", default=True):
