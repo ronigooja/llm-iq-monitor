@@ -5,7 +5,10 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&
 const num = (v, digits = 1) => v == null ? '—' : Number(v).toFixed(digits);
 const secs = v => v == null ? '—' : `${Number(v).toFixed(v < 10 ? 1 : 0)}s`;
 const usd = v => v == null ? '—' : `$${Number(v).toFixed(v < 0.01 ? 4 : 3)}`;
-const when = t => t ? new Date(t * 1000).toLocaleString() : '—';
+const when = t => t ? new Date(t * 1000).toLocaleString(i18n.lang() === 'zh' ? 'zh-CN' : 'en') : '—';
+const tr = (key, vars) => i18n.t(key, vars);
+const dimName = d => tr(`dim.${d.dim}.name`) === `dim.${d.dim}.name` ? d.name : tr(`dim.${d.dim}.name`);
+const dimUse = d => tr(`dim.${d.dim}.use`) === `dim.${d.dim}.use` ? d.use_when : tr(`dim.${d.dim}.use`);
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 async function api(name, params = {}, options = {}) {
   const clean = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null));
