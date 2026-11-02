@@ -14,10 +14,19 @@ def test_reference_answers_score_and_wrong_answers_fail():
 
 
 def test_instruction_rules():
-    question = generate("instruction", "test")[0]
-    rules = question.meta["rules"]
-    count = next(x["value"] for x in rules if x["type"] == "bullet_count")
-    word = next(x["word"] for x in rules if x["type"] == "keyword_count")
-    reply = "\n".join(f"- {word}" if i == 0 else "- calm" for i in range(count))
+    from llm_iq_monitor.questions.base import Question
+
+    rules = [{"type": "dash_bullets", "value": 2}, {"type": "keyword_exact", "word": "amber", "value": 1},
+             {"type": "banned_words", "items": ["very"]}, {"type": "lowercase"}, {"type": "no_commas"}]
+    question = Question("instruction-01", "instruction", "", "rules", None, {"rules": rules})
+    reply = "- an amber light.\n- a calm room."
     assert score(question, reply)
-    assert not score(question, reply.replace(word, "LOUD"))
+    assert not score(question, reply.replace("amber", "LOUD"))
+    assert not score(question, reply.replace("amber", "ambers"))
+    assert not score(question, reply + "\n- very nice.")
+
+
+def test_answer_line_accepts_markdown_and_latex():
+    assert extract_answer("**ANSWER:** 42") == "42"
+    assert extract_answer("**ANSWER: 3/7**") == "3/7"
+    assert extract_answer("ANSWER: $\\boxed{12}$".replace("$", "")) == "12"

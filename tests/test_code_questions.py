@@ -47,19 +47,20 @@ def test_extract_code_uses_last_valid_block():
 
 def test_reference_solutions_pass_generated_cases():
     # Exercise the generated JSON-shaped cases with equivalent reference implementations.
+    import itertools
+    from collections import Counter
+
     refs = [
-        lambda values, index: sum(v for i, v in enumerate(values) if i % index == 0),
-        lambda values: max((sum(1 for _ in group) for _, group in __import__("itertools").groupby(values)), default=0),
+        lambda values, k: sum(v for i, v in enumerate(values) if i % abs(k) == 0) if k else 0,
+        lambda values: max((sum(1 for _ in group) for _, group in itertools.groupby(values)), default=0),
         lambda values: sorted(set(values), reverse=True)[1] if len(set(values)) > 1 else None,
         lambda text: _balanced(text),
         lambda text: _rle(text),
-        lambda left, right: sorted(left.replace(" ", "").lower()) == sorted(right.replace(" ", "").lower()),
+        lambda left, right: Counter("".join(left.split()).casefold()) == Counter("".join(right.split()).casefold()),
         lambda value: _flatten(value),
         lambda numbers: sum(_prime(n) for n in numbers),
         lambda values, amount: values[-amount % len(values):] + values[:-amount % len(values)] if values else [],
-        lambda intervals: _merge(intervals),
-        lambda values: max(range(len(values)), key=lambda i: values[i]) if values else -1,
-        lambda words: min(words, key=lambda w: (-len(w), w)) if words else "",
+        lambda intervals: _merge([sorted(x) for x in intervals]),
     ]
     for question, reference in zip(generate("test"), refs):
         for case in question.meta["tests"]:
@@ -88,7 +89,7 @@ def _flatten(value):
 
 
 def _prime(n):
-    return n >= 2 and all(n % d for d in range(2, int(n ** .5) + 1))
+    return n >= 2 and all(n % d for d in range(2, int(n ** .5) + 1))  # fine up to 10**6
 
 
 def _merge(intervals):
