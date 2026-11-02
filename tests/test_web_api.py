@@ -1,4 +1,5 @@
 import re
+from html import unescape
 from pathlib import Path
 
 import pytest
@@ -30,8 +31,13 @@ async def client(monitor_db):
 async def test_api_page_is_public_reference(client):
     response = await client.get("/api")
     assert response.status_code == 200, response.text
-    for query in ("ranking", "series", "models", "dimensions", "ui_samples", "health", "rate", "whoami"):
+    for query in ("ranking", "series", "models", "dimensions", "ui_samples", "health"):
         assert f"<code>{query}</code>" in response.text
+    assert "/monitor/rate.json" not in response.text
+    assert "/monitor/whoami.json" not in response.text
+    assert "rating key" not in response.text.lower()
+    assert "example_link" not in response.text
+    assert 'target="_blank"' not in response.text
     assert not re.search(r"<script[^>]*>\s*[^<]", response.text, re.I)
     assert "window.location.hash" not in response.text
     assert "location.hash" not in response.text
@@ -48,11 +54,10 @@ def test_api_template_keys_are_registered_in_both_languages():
 
 
 @pytest.mark.asyncio
-async def test_api_examples_are_existing_queries(client):
+async def test_api_try_urls_are_existing_queries(client):
     html = (await client.get("/api")).text
-    hrefs = re.findall(r'href="(/monitor/[^"#]+)', html)
-    for href in hrefs:
-        if any(f"/{name}.json" in href for name in ("rate", "whoami")):
-            continue
-        response = await client.get(href)
-        assert response.status_code == 200, (href, response.text)
+    urls = [unescape(url) for url in re.findall(r'data-api-url="([^"]+)"', html)]
+    assert len(urls) == 6
+    for url in urls:
+        response = await client.get(url)
+        assert response.status_code == 200, (url, response.text)

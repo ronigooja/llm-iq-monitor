@@ -5,122 +5,96 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
   <title data-i18n="api.title">API reference · LLM IQ Monitor</title>
-  <link rel="stylesheet" href="/static/style.css?v=10">
+  <link rel="stylesheet" href="/static/style.css?v=11">
 </head>
 <body>
-<main>
-  <header><h1>LLM IQ Monitor</h1><nav><a href="/" data-i18n="nav.scores">Scores</a><a href="/compare" data-i18n="nav.compare">Compare</a><a href="/ui" data-i18n="nav.ui">UI</a><a href="/api" aria-current="page" data-i18n="nav.api">API</a></nav><div id="lang-switch" role="group" aria-label="Language"><button type="button" data-lang="en" aria-pressed="true">English</button><button type="button" data-lang="zh" aria-pressed="false">中文</button></div></header>
-  <section id="api-reference">
-    <h2 data-i18n="api.heading">Public API reference</h2>
-    <p data-i18n="api.intro">Public, read-only JSON endpoints served by Datasette. The API sends CORS headers (the service runs <code>datasette --cors</code>).</p>
-    <nav class="api-toc" aria-label="Contents">
-      <a href="#quick-start" data-i18n="api.toc_quick_start">Quick start</a>
-      <a href="#queries" data-i18n="api.toc_queries">Queries</a>
-      <a href="#field-semantics" data-i18n="api.toc_field_semantics">Field semantics</a>
-      <a href="#dimensions" data-i18n="api.toc_dimensions">Dimensions</a>
-      <a href="#exposure" data-i18n="api.toc_exposure">Exposure rules</a>
-    </nav>
-
-    <section id="quick-start" class="api-section">
-      <h3 data-i18n="api.quick_start_heading">Quick start</h3>
-      <p data-i18n="api.quick_start_intro">The base path is <code>/monitor/</code>. Add <code>_shape=array</code> to receive a JSON array. Parameters are strings; an empty or missing optional parameter means no filter.</p>
-      <pre><code>curl 'https://iq.z0e.dev/monitor/ranking.json?dim=reasoning&amp;_shape=array'</code></pre>
-      <p data-i18n="api.fetch_example_label">Pick the best model for a dimension by score, then latency:</p>
-      <pre><code>const rows = await fetch('/monitor/ranking.json?dim=reasoning&amp;_shape=array').then(r =&gt; r.json());
-const best = rows.find(row =&gt; row.score != null);</code></pre>
-      <p data-i18n="api.quick_start_notes">Ranking is already ordered by score descending, then <code>latency_p50</code> ascending; unknown values are <code>null</code>, never <code>0</code>.</p>
-    </section>
-
-    <section id="queries" class="api-section">
-      <h3 data-i18n="api.queries_heading">Queries</h3>
-      <p data-i18n="api.query_conventions">Each example opens in a new tab. Use the Try it button to fetch the example and inspect its first three rows.</p>
-      <div class="api-query-list">
-        <article class="api-query">
-          <h4><code>ranking</code></h4>
-          <p data-i18n="api.ranking_purpose">Ranking for one capability: the latest finished run of each model × effort that ran the dimension, ordered by score descending, then <code>latency_p50</code> ascending, with null scores last.</p>
-          <p><strong data-i18n="api.parameters_label">Parameters:</strong> <code>dim</code> <span data-i18n="api.required">(required: a dimension key, including <code>write_zh</code> and <code>write_en</code>)</span>; <code>effort</code> <span data-i18n="api.optional">(optional)</span>.</p>
-          <p><strong data-i18n="api.columns_label">Returned columns:</strong> <code>rank</code> <span data-i18n="api.col_ranking_rank">(rank; null when the score is null)</span>; <code>model</code> <span data-i18n="api.col_model">(model id)</span>; <code>effort</code> <span data-i18n="api.col_effort">(effort level)</span>; <code>run_id</code> <span data-i18n="api.col_run_id">(run id)</span>; <code>finished_at</code> <span data-i18n="api.col_finished_at">(finish time, Unix seconds UTC)</span>; <code>dataset_version</code> <span data-i18n="api.col_dataset_version">(dataset version)</span>; <code>status</code> <span data-i18n="api.col_status">(run status)</span>; <code>availability</code> <span data-i18n="api.col_availability">(successful requests divided by total requests)</span>; <code>score</code> <span data-i18n="api.col_score">(score from 0 to 100)</span>; <code>quality</code> <span data-i18n="api.col_quality">(judged writing quality; null for other dimensions)</span>; <code>latency_p50</code> <span data-i18n="api.col_latency_p50">(median time to solve in seconds)</span>; <code>latency_p95</code> <span data-i18n="api.col_latency_p95">(95th-percentile time to solve in seconds)</span>; <code>ttft_p50</code> <span data-i18n="api.col_ttft_p50">(median time to first token in seconds)</span>; <code>time_total</code> <span data-i18n="api.col_time_total">(total measured time in seconds)</span>; <code>n</code> <span data-i18n="api.col_n">(number of requests)</span>; <code>n_err</code> <span data-i18n="api.col_n_err">(number of errors)</span>; <code>cost_usd</code> <span data-i18n="api.col_cost_usd">(derived run cost in USD)</span>; <code>cost_per_correct</code> <span data-i18n="api.col_cost_per_correct">(derived USD cost per correct result)</span>.</p>
-          <p class="api-example"><a href="/monitor/ranking.json?dim=reasoning&amp;_shape=array" target="_blank" rel="noopener" data-i18n="api.example_link">Live example</a> <button type="button" data-api-try data-i18n="api.try">Try it</button></p><pre class="api-result" hidden></pre>
-        </article>
-        <article class="api-query">
-          <h4><code>series</code></h4>
-          <p data-i18n="api.series_purpose">History points, time ascending, at most 2000 rows.</p>
-          <p><strong data-i18n="api.parameters_label">Parameters:</strong> <code>model</code>, <code>effort</code>, <code>dim</code> <span data-i18n="api.all_required">(all required)</span>; <code>from</code>, <code>to</code>, <code>dataset_version</code> <span data-i18n="api.optional">(optional)</span>.</p>
-          <p><strong data-i18n="api.columns_label">Returned columns:</strong> <code>t</code> <span data-i18n="api.col_t">(finish or rating time, Unix seconds UTC)</span>; <code>run_id</code> <span data-i18n="api.col_run_id">(run id)</span>; <code>dataset_version</code> <span data-i18n="api.col_dataset_version">(dataset version)</span>; <code>score</code> <span data-i18n="api.col_score">(score from 0 to 100)</span>; <code>quality</code> <span data-i18n="api.col_quality">(judged writing quality; null for other dimensions)</span>; <code>latency_p50</code> <span data-i18n="api.col_latency_p50">(median time to solve in seconds)</span>; <code>latency_p95</code> <span data-i18n="api.col_latency_p95">(95th-percentile time to solve in seconds)</span>; <code>ttft_p50</code> <span data-i18n="api.col_ttft_p50">(median time to first token in seconds)</span>; <code>time_total</code> <span data-i18n="api.col_time_total">(total measured time in seconds)</span>; <code>availability</code> <span data-i18n="api.col_availability">(successful requests divided by total requests)</span>; <code>cost_per_correct</code> <span data-i18n="api.col_cost_per_correct">(derived USD cost per correct result)</span>.</p>
-          <p class="api-example"><a href="/monitor/series.json?model=alpha&amp;effort=medium&amp;dim=reasoning&amp;_shape=array" target="_blank" rel="noopener" data-i18n="api.example_link">Live example</a> <button type="button" data-api-try data-i18n="api.try">Try it</button></p><pre class="api-result" hidden></pre>
-        </article>
-        <article class="api-query">
-          <h4><code>models</code></h4>
-          <p data-i18n="api.models_purpose">One row per model × effort that has finished runs.</p>
-          <p><strong data-i18n="api.parameters_label">Parameters:</strong> <span data-i18n="api.none">none</span>.</p>
-          <p><strong data-i18n="api.columns_label">Returned columns:</strong> <code>model</code> <span data-i18n="api.col_model">(model id)</span>; <code>effort</code> <span data-i18n="api.col_effort">(effort level)</span>; <code>active</code> <span data-i18n="api.col_active">(whether the model is active)</span>; <code>dims</code> <span data-i18n="api.col_dims">(dimensions with data, comma-separated)</span>; <code>last_finished_at</code> <span data-i18n="api.col_last_finished_at">(last finish time, Unix seconds UTC)</span>; <code>last_status</code> <span data-i18n="api.col_last_status">(last run status)</span>.</p>
-          <p class="api-example"><a href="/monitor/models.json?_shape=array" target="_blank" rel="noopener" data-i18n="api.example_link">Live example</a> <button type="button" data-api-try data-i18n="api.try">Try it</button></p><pre class="api-result" hidden></pre>
-        </article>
-        <article class="api-query">
-          <h4><code>dimensions</code></h4>
-          <p data-i18n="api.dimensions_purpose">The dimensions with a one-line “use it when” description, in display order.</p>
-          <p><strong data-i18n="api.parameters_label">Parameters:</strong> <span data-i18n="api.none">none</span>.</p>
-          <p><strong data-i18n="api.columns_label">Returned columns:</strong> <code>dim</code> <span data-i18n="api.col_dim">(dimension key)</span>; <code>name</code> <span data-i18n="api.col_name">(display name)</span>; <code>use_when</code> <span data-i18n="api.col_use_when">(when to use this dimension)</span>; <code>kind</code> <span data-i18n="api.col_kind">(dimension kind)</span>.</p>
-          <p class="api-example"><a href="/monitor/dimensions.json?_shape=array" target="_blank" rel="noopener" data-i18n="api.example_link">Live example</a> <button type="button" data-api-try data-i18n="api.try">Try it</button></p><pre class="api-result" hidden></pre>
-        </article>
-        <article class="api-query">
-          <h4><code>ui_samples</code></h4>
-          <p data-i18n="api.ui_samples_purpose">Latest SVG samples with stars, newest first, at most 200 rows.</p>
-          <p><strong data-i18n="api.parameters_label">Parameters:</strong> <code>model</code>, <code>effort</code> <span data-i18n="api.optional">(optional)</span>.</p>
-          <p><strong data-i18n="api.columns_label">Returned columns:</strong> <code>sample_id</code> <span data-i18n="api.col_sample_id">(sample id)</span>; <code>model</code> <span data-i18n="api.col_model">(model id)</span>; <code>effort</code> <span data-i18n="api.col_effort">(effort level)</span>; <code>prompt_key</code> <span data-i18n="api.col_prompt_key">(prompt identifier)</span>; <code>prompt</code> <span data-i18n="api.col_prompt">(prompt text)</span>; <code>svg</code> <span data-i18n="api.col_svg">(SVG, null for replaced samples)</span>; <code>valid</code> <span data-i18n="api.col_valid">(whether the sample is valid)</span>; <code>stars</code> <span data-i18n="api.col_stars">(rating from 1 to 10)</span>; <code>created_at</code> <span data-i18n="api.col_created_at">(creation time, Unix seconds UTC)</span>.</p>
-          <p class="api-example"><a href="/monitor/ui_samples.json?_shape=array" target="_blank" rel="noopener" data-i18n="api.example_link">Live example</a> <button type="button" data-api-try data-i18n="api.try">Try it</button></p><pre class="api-result" hidden></pre>
-        </article>
-        <article class="api-query">
-          <h4><code>health</code></h4>
-          <p data-i18n="api.health_purpose">Liveness of the pipeline.</p>
-          <p><strong data-i18n="api.parameters_label">Parameters:</strong> <span data-i18n="api.none">none</span>.</p>
-          <p><strong data-i18n="api.columns_label">Returned columns:</strong> <code>last_finished_at</code> <span data-i18n="api.col_last_finished_at">(last finish time, Unix seconds UTC)</span>; <code>running_runs</code> <span data-i18n="api.col_running_runs">(number of running runs)</span>; <code>prices_fetched_at</code> <span data-i18n="api.col_prices_fetched_at">(price fetch time, Unix seconds UTC)</span>; <code>dataset_version</code> <span data-i18n="api.col_dataset_version">(current dataset version)</span>.</p>
-          <p class="api-example"><a href="/monitor/health.json?_shape=array" target="_blank" rel="noopener" data-i18n="api.example_link">Live example</a> <button type="button" data-api-try data-i18n="api.try">Try it</button></p><pre class="api-result" hidden></pre>
-        </article>
-        <article class="api-query api-protected">
-          <h4><code>rate</code></h4>
-          <p data-i18n="api.rate_purpose">Sets the stars of one sample; the only write endpoint.</p>
-          <p data-i18n="api.protected_note">Needs the rating key, POST, not for general use. The key is held by the site owner.</p>
-          <p><strong data-i18n="api.parameters_label">Parameters:</strong> <code>sample_id</code>, <code>stars</code> <span data-i18n="api.post_key_required">(POST, key required)</span>.</p>
-          <p><strong data-i18n="api.columns_label">Returned columns:</strong> <code>ok</code> <span data-i18n="api.col_ok">(true when the request is accepted)</span>; <code>message</code> <span data-i18n="api.col_message">(result message)</span>.</p>
-          <p class="api-example"><a href="/monitor/rate.json?_shape=array" target="_blank" rel="noopener" data-i18n="api.example_link">Live example</a> <button type="button" data-api-try data-i18n="api.try">Try it</button></p><pre class="api-result" hidden></pre>
-        </article>
-        <article class="api-query api-protected">
-          <h4><code>whoami</code></h4>
-          <p data-i18n="api.whoami_purpose">Checks whether the caller has the rating identity.</p>
-          <p data-i18n="api.protected_note">Needs the rating key, POST, not for general use. The key is held by the site owner.</p>
-          <p><strong data-i18n="api.parameters_label">Parameters:</strong> <span data-i18n="api.none">none</span>.</p>
-          <p><strong data-i18n="api.columns_label">Returned columns:</strong> <code>ok</code> <span data-i18n="api.col_ok">(true when the identity is accepted)</span>.</p>
-          <p class="api-example"><a href="/monitor/whoami.json?_shape=array" target="_blank" rel="noopener" data-i18n="api.example_link">Live example</a> <button type="button" data-api-try data-i18n="api.try">Try it</button></p><pre class="api-result" hidden></pre>
-        </article>
+  <main>
+    <header><h1>LLM IQ Monitor</h1><nav><a href="/" data-i18n="nav.scores">Scores</a><a href="/compare" data-i18n="nav.compare">Compare</a><a href="/ui" data-i18n="nav.ui">UI</a><a href="/api" aria-current="page" data-i18n="nav.api">API</a></nav><div id="lang-switch" role="group" aria-label="Language"><button type="button" data-lang="en" aria-pressed="true">English</button><button type="button" data-lang="zh" aria-pressed="false">中文</button></div></header>
+    <section id="api-reference">
+      <div class="api-hero">
+        <p class="api-kicker" data-i18n="api.kicker">Developer reference</p>
+        <h2 data-i18n="api.heading">Public API reference</h2>
+        <p data-i18n="api.intro">Public, read-only JSON endpoints served by Datasette. The API sends CORS headers (the service runs datasette --cors).</p>
+        <code class="api-base">https://iq.z0e.dev/monitor/</code>
       </div>
-    </section>
+      <nav class="api-toc" aria-label="Contents">
+        <a href="#quick-start" data-i18n="api.toc_quick_start">Quick start</a>
+        <a href="#queries" data-i18n="api.toc_queries">Queries</a>
+        <a href="#field-semantics" data-i18n="api.toc_field_semantics">Field semantics</a>
+        <a href="#dimensions" data-i18n="api.toc_dimensions">Dimensions</a>
+        <a href="#exposure" data-i18n="api.toc_exposure">Exposure rules</a>
+      </nav>
 
-    <section id="field-semantics" class="api-section">
-      <h3 data-i18n="api.field_semantics_heading">Field semantics summary</h3>
-      <ul>
-        <li data-i18n="api.semantic_score"><code>score</code>: 0–100.</li>
-        <li data-i18n="api.semantic_latency"><code>latency_p50</code>: time to solve in seconds.</li>
-        <li data-i18n="api.semantic_quality"><code>quality</code>: judged writing quality.</li>
-        <li data-i18n="api.semantic_cost"><code>cost_per_correct</code>: derived USD cost per correct result.</li>
-        <li data-i18n="api.semantic_availability"><code>availability</code>: successful requests divided by total requests.</li>
-      </ul>
-    </section>
+      <section id="quick-start" class="api-section">
+        <h3 data-i18n="api.quick_start_heading">Quick start</h3>
+        <p data-i18n="api.quick_start_intro">The base path is /monitor/. Add _shape=array to receive a JSON array. Parameters are strings; an empty or missing optional parameter means no filter.</p>
+        <pre><code>curl 'https://iq.z0e.dev/monitor/ranking.json?dim=reasoning&amp;_shape=array'</code></pre>
+        <p data-i18n="api.fetch_example_label">Pick the best model for a dimension by score, then latency:</p>
+        <pre><code>const rows = await fetch('/monitor/ranking.json?dim=reasoning&amp;_shape=array').then(r =&gt; r.json());
+const best = rows.find(row =&gt; row.score != null);</code></pre>
+        <p data-i18n="api.quick_start_notes">Ranking is already ordered by score descending, then <code>latency_p50</code> ascending; unknown values are <code>null</code>, never <code>0</code>.</p>
+      </section>
 
-    <section id="dimensions" class="api-section">
-      <h3 data-i18n="api.dimensions_heading">Dimensions</h3>
-      <p data-i18n="api.dimensions_intro">This table is loaded live from the <code>dimensions</code> query.</p>
-      <div id="dimensions-status" class="muted" data-i18n="api.loading">Loading…</div>
-      <table id="dimensions-table" hidden><thead><tr><th scope="col" data-i18n="api.dim">dim</th><th scope="col" data-i18n="api.name">name</th><th scope="col" data-i18n="api.use_when">use_when</th><th scope="col" data-i18n="api.kind">kind</th></tr></thead><tbody></tbody></table>
-    </section>
+      <section id="queries" class="api-section">
+        <h3 data-i18n="api.queries_heading">Queries</h3>
+        <p data-i18n="api.query_conventions">Click the Try it button to fetch the example and see the first 3 rows.</p>
+        <div class="api-query-list">
+          <article class="api-query">
+            <div class="api-query-header"><h4><code>ranking</code></h4><div class="api-badges"><span class="api-badge" data-i18n="api.method_get">GET</span><span class="api-badge api-badge-public" data-i18n="api.public">public</span></div></div>
+            <p data-i18n="api.ranking_purpose">Ranking for one capability: the latest finished run of each model × effort that ran the dimension, ordered by score descending, then <code>latency_p50</code> ascending, with null scores last.</p>
+            <h5 data-i18n="api.parameters_label">Parameters:</h5><table class="api-data-table"><thead><tr><th data-i18n="api.parameter_name">Name</th><th data-i18n="api.parameter_requirement">Required</th><th data-i18n="api.parameter_description">Description</th></tr></thead><tbody><tr><td><code>dim</code></td><td><span class="api-required" data-i18n="api.required_badge">required</span></td><td data-i18n="api.required">a dimension key, including write_zh and write_en</td></tr><tr><td><code>effort</code></td><td><span class="api-optional" data-i18n="api.optional_badge">optional</span></td><td data-i18n="api.optional_description">filter by effort level</td></tr></tbody></table>
+            <h5 data-i18n="api.columns_label">Returned columns:</h5><div class="api-columns"><div><code>rank</code><span data-i18n="api.col_ranking_rank">rank; null when the score is null</span></div><div><code>model</code><span data-i18n="api.col_model">model id</span></div><div><code>effort</code><span data-i18n="api.col_effort">effort level</span></div><div><code>run_id</code><span data-i18n="api.col_run_id">run id</span></div><div><code>finished_at</code><span data-i18n="api.col_finished_at">finish time, Unix seconds UTC</span></div><div><code>dataset_version</code><span data-i18n="api.col_dataset_version">dataset version</span></div><div><code>status</code><span data-i18n="api.col_status">run status</span></div><div><code>availability</code><span data-i18n="api.col_availability">successful requests divided by total requests</span></div><div><code>score</code><span data-i18n="api.col_score">score from 0 to 100</span></div><div><code>quality</code><span data-i18n="api.col_quality">judged writing quality; null for other dimensions</span></div><div><code>latency_p50</code><span data-i18n="api.col_latency_p50">median time to solve in seconds</span></div><div><code>latency_p95</code><span data-i18n="api.col_latency_p95">95th-percentile time to solve in seconds</span></div><div><code>ttft_p50</code><span data-i18n="api.col_ttft_p50">median time to first token in seconds</span></div><div><code>time_total</code><span data-i18n="api.col_time_total">total measured time in seconds</span></div><div><code>n</code><span data-i18n="api.col_n">number of requests</span></div><div><code>n_err</code><span data-i18n="api.col_n_err">number of errors</span></div><div><code>cost_usd</code><span data-i18n="api.col_cost_usd">derived run cost in USD</span></div><div><code>cost_per_correct</code><span data-i18n="api.col_cost_per_correct">derived USD cost per correct result</span></div></div>
+            <p class="api-example"><button type="button" data-api-url="/monitor/ranking.json?dim=reasoning&amp;_shape=array" data-api-try data-i18n="api.try">Try it</button></p><pre class="api-result" hidden></pre>
+          </article>
 
-    <section id="exposure" class="api-section">
-      <h3 data-i18n="api.exposure_heading">Exposure rules</h3>
-      <p data-i18n="api.exposure_text">Raw tables, database download and arbitrary SQL are not exposed; only the canned queries are available.</p>
+          <article class="api-query">
+            <div class="api-query-header"><h4><code>series</code></h4><div class="api-badges"><span class="api-badge" data-i18n="api.method_get">GET</span><span class="api-badge api-badge-public" data-i18n="api.public">public</span></div></div>
+            <p data-i18n="api.series_purpose">History points, time ascending, at most 2000 rows.</p>
+            <h5 data-i18n="api.parameters_label">Parameters:</h5><table class="api-data-table"><thead><tr><th data-i18n="api.parameter_name">Name</th><th data-i18n="api.parameter_requirement">Required</th><th data-i18n="api.parameter_description">Description</th></tr></thead><tbody><tr><td><code>model</code>, <code>effort</code>, <code>dim</code></td><td><span class="api-required" data-i18n="api.required_badge">required</span></td><td data-i18n="api.all_required">all required</td></tr><tr><td><code>from</code>, <code>to</code>, <code>dataset_version</code></td><td><span class="api-optional" data-i18n="api.optional_badge">optional</span></td><td data-i18n="api.optional_description">filter by effort level</td></tr></tbody></table>
+            <h5 data-i18n="api.columns_label">Returned columns:</h5><div class="api-columns"><div><code>t</code><span data-i18n="api.col_t">finish or rating time, Unix seconds UTC</span></div><div><code>run_id</code><span data-i18n="api.col_run_id">run id</span></div><div><code>dataset_version</code><span data-i18n="api.col_dataset_version">dataset version</span></div><div><code>score</code><span data-i18n="api.col_score">score from 0 to 100</span></div><div><code>quality</code><span data-i18n="api.col_quality">judged writing quality; null for other dimensions</span></div><div><code>latency_p50</code><span data-i18n="api.col_latency_p50">median time to solve in seconds</span></div><div><code>latency_p95</code><span data-i18n="api.col_latency_p95">95th-percentile time to solve in seconds</span></div><div><code>ttft_p50</code><span data-i18n="api.col_ttft_p50">median time to first token in seconds</span></div><div><code>time_total</code><span data-i18n="api.col_time_total">total measured time in seconds</span></div><div><code>availability</code><span data-i18n="api.col_availability">successful requests divided by total requests</span></div><div><code>cost_per_correct</code><span data-i18n="api.col_cost_per_correct">derived USD cost per correct result</span></div></div>
+            <p class="api-example"><button type="button" data-api-url="/monitor/series.json?model=alpha&amp;effort=medium&amp;dim=reasoning&amp;_shape=array" data-api-try data-i18n="api.try">Try it</button></p><pre class="api-result" hidden></pre>
+          </article>
+
+          <article class="api-query">
+            <div class="api-query-header"><h4><code>models</code></h4><div class="api-badges"><span class="api-badge" data-i18n="api.method_get">GET</span><span class="api-badge api-badge-public" data-i18n="api.public">public</span></div></div>
+            <p data-i18n="api.models_purpose">One row per model × effort that has finished runs.</p>
+            <h5 data-i18n="api.parameters_label">Parameters:</h5><table class="api-data-table"><thead><tr><th data-i18n="api.parameter_name">Name</th><th data-i18n="api.parameter_requirement">Required</th><th data-i18n="api.parameter_description">Description</th></tr></thead><tbody><tr><td data-i18n="api.none">none</td><td>—</td><td data-i18n="api.no_parameters_description">No parameters.</td></tr></tbody></table>
+            <h5 data-i18n="api.columns_label">Returned columns:</h5><div class="api-columns"><div><code>model</code><span data-i18n="api.col_model">model id</span></div><div><code>effort</code><span data-i18n="api.col_effort">effort level</span></div><div><code>active</code><span data-i18n="api.col_active">whether the model is active</span></div><div><code>dims</code><span data-i18n="api.col_dims">dimensions with data, comma-separated</span></div><div><code>last_finished_at</code><span data-i18n="api.col_last_finished_at">last finish time, Unix seconds UTC</span></div><div><code>last_status</code><span data-i18n="api.col_last_status">last run status</span></div></div>
+            <p class="api-example"><button type="button" data-api-url="/monitor/models.json?_shape=array" data-api-try data-i18n="api.try">Try it</button></p><pre class="api-result" hidden></pre>
+          </article>
+
+          <article class="api-query">
+            <div class="api-query-header"><h4><code>dimensions</code></h4><div class="api-badges"><span class="api-badge" data-i18n="api.method_get">GET</span><span class="api-badge api-badge-public" data-i18n="api.public">public</span></div></div>
+            <p data-i18n="api.dimensions_purpose">The dimensions with a one-line “use it when” description, in display order.</p>
+            <h5 data-i18n="api.parameters_label">Parameters:</h5><table class="api-data-table"><thead><tr><th data-i18n="api.parameter_name">Name</th><th data-i18n="api.parameter_requirement">Required</th><th data-i18n="api.parameter_description">Description</th></tr></thead><tbody><tr><td data-i18n="api.none">none</td><td>—</td><td data-i18n="api.no_parameters_description">No parameters.</td></tr></tbody></table>
+            <h5 data-i18n="api.columns_label">Returned columns:</h5><div class="api-columns"><div><code>dim</code><span data-i18n="api.col_dim">dimension key</span></div><div><code>name</code><span data-i18n="api.col_name">display name</span></div><div><code>use_when</code><span data-i18n="api.col_use_when">when to use this dimension</span></div><div><code>kind</code><span data-i18n="api.col_kind">dimension kind</span></div></div>
+            <p class="api-example"><button type="button" data-api-url="/monitor/dimensions.json?_shape=array" data-api-try data-i18n="api.try">Try it</button></p><pre class="api-result" hidden></pre>
+          </article>
+
+          <article class="api-query">
+            <div class="api-query-header"><h4><code>ui_samples</code></h4><div class="api-badges"><span class="api-badge" data-i18n="api.method_get">GET</span><span class="api-badge api-badge-public" data-i18n="api.public">public</span></div></div>
+            <p data-i18n="api.ui_samples_purpose">Latest SVG samples with stars, newest first, at most 200 rows.</p>
+            <h5 data-i18n="api.parameters_label">Parameters:</h5><table class="api-data-table"><thead><tr><th data-i18n="api.parameter_name">Name</th><th data-i18n="api.parameter_requirement">Required</th><th data-i18n="api.parameter_description">Description</th></tr></thead><tbody><tr><td><code>model</code>, <code>effort</code></td><td><span class="api-optional" data-i18n="api.optional_badge">optional</span></td><td data-i18n="api.optional_description">filter by effort level</td></tr></tbody></table>
+            <h5 data-i18n="api.columns_label">Returned columns:</h5><div class="api-columns"><div><code>sample_id</code><span data-i18n="api.col_sample_id">sample id</span></div><div><code>model</code><span data-i18n="api.col_model">model id</span></div><div><code>effort</code><span data-i18n="api.col_effort">effort level</span></div><div><code>prompt_key</code><span data-i18n="api.col_prompt_key">prompt identifier</span></div><div><code>prompt</code><span data-i18n="api.col_prompt">prompt text</span></div><div><code>svg</code><span data-i18n="api.col_svg">SVG, null for replaced samples</span></div><div><code>valid</code><span data-i18n="api.col_valid">whether the sample is valid</span></div><div><code>stars</code><span data-i18n="api.col_stars">rating from 1 to 10</span></div><div><code>created_at</code><span data-i18n="api.col_created_at">creation time, Unix seconds UTC</span></div></div>
+            <p class="api-example"><button type="button" data-api-url="/monitor/ui_samples.json?_shape=array" data-api-try data-i18n="api.try">Try it</button></p><pre class="api-result" hidden></pre>
+          </article>
+
+          <article class="api-query">
+            <div class="api-query-header"><h4><code>health</code></h4><div class="api-badges"><span class="api-badge" data-i18n="api.method_get">GET</span><span class="api-badge api-badge-public" data-i18n="api.public">public</span></div></div>
+            <p data-i18n="api.health_purpose">Liveness of the pipeline.</p>
+            <h5 data-i18n="api.parameters_label">Parameters:</h5><table class="api-data-table"><thead><tr><th data-i18n="api.parameter_name">Name</th><th data-i18n="api.parameter_requirement">Required</th><th data-i18n="api.parameter_description">Description</th></tr></thead><tbody><tr><td data-i18n="api.none">none</td><td>—</td><td data-i18n="api.no_parameters_description">No parameters.</td></tr></tbody></table>
+            <h5 data-i18n="api.columns_label">Returned columns:</h5><div class="api-columns"><div><code>last_finished_at</code><span data-i18n="api.col_last_finished_at">last finish time, Unix seconds UTC</span></div><div><code>running_runs</code><span data-i18n="api.col_running_runs">number of running runs</span></div><div><code>prices_fetched_at</code><span data-i18n="api.col_prices_fetched_at">price fetch time, Unix seconds UTC</span></div><div><code>dataset_version</code><span data-i18n="api.col_dataset_version">current dataset version</span></div></div>
+            <p class="api-example"><button type="button" data-api-url="/monitor/health.json?_shape=array" data-api-try data-i18n="api.try">Try it</button></p><pre class="api-result" hidden></pre>
+          </article>
+        </div>
+      </section>
+
+      <section id="field-semantics" class="api-section"><h3 data-i18n="api.field_semantics_heading">Field semantics summary</h3><ul><li data-i18n="api.semantic_score"><code>score</code>: 0–100.</li><li data-i18n="api.semantic_latency"><code>latency_p50</code>: time to solve in seconds.</li><li data-i18n="api.semantic_quality"><code>quality</code>: judged writing quality.</li><li data-i18n="api.semantic_cost"><code>cost_per_correct</code>: derived USD cost per correct result.</li><li data-i18n="api.semantic_availability"><code>availability</code>: successful requests divided by total requests.</li></ul></section>
+      <section id="dimensions" class="api-section"><h3 data-i18n="api.dimensions_heading">Dimensions</h3><p data-i18n="api.dimensions_intro">This table is loaded live from the <code>dimensions</code> query.</p><div id="dimensions-status" class="muted" data-i18n="api.loading">Loading…</div><table id="dimensions-table" hidden><thead><tr><th scope="col" data-i18n="api.dim">dim</th><th scope="col" data-i18n="api.name">name</th><th scope="col" data-i18n="api.use_when">use_when</th><th scope="col" data-i18n="api.kind">kind</th></tr></thead><tbody></tbody></table></section>
+      <section id="exposure" class="api-section"><h3 data-i18n="api.exposure_heading">Exposure rules</h3><p data-i18n="api.exposure_text">Raw tables, database download and arbitrary SQL are not exposed; only the canned queries are available.</p></section>
     </section>
-  </section>
-  <footer> <span data-i18n="footer.dataset">Dataset</span> <span id="dataset">—</span> · <span data-i18n="footer.lastRun">Last finished run</span> <span id="last-run">—</span></footer>
-</main>
-<script src="/static/i18n.js?v=10"></script><script src="/static/app.js?v=10"></script><script src="/static/api.js?v=10"></script>
+    <footer><span data-i18n="footer.dataset">Dataset</span> <span id="dataset">—</span> · <span data-i18n="footer.lastRun">Last finished run</span> <span id="last-run">—</span></footer>
+  </main>
+  <script src="/static/i18n.js?v=11"></script><script src="/static/app.js?v=11"></script><script src="/static/api.js?v=11"></script>
 </body>
 </html>
