@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def migrate_path() -> Path:
@@ -48,14 +48,16 @@ def migrate(conn: sqlite3.Connection):
           price_in REAL, price_out REAL, price_fetched_at REAL,
           started_at REAL, finished_at REAL, status TEXT NOT NULL,
           availability REAL, duration_s REAL,
-          cost_usd REAL, rtt_ms REAL
+           cost_usd REAL, rtt_ms REAL,
+           judge_model TEXT, judge_price_in REAL, judge_price_out REAL
         );
         CREATE TABLE IF NOT EXISTS run_dims (
           run_id INTEGER NOT NULL REFERENCES runs(id), dim TEXT NOT NULL,
           score REAL, n INTEGER, n_err INTEGER, availability REAL,
           latency_p50 REAL, latency_p95 REAL, ttft_p50 REAL,
           time_total REAL, in_tok INTEGER, out_tok INTEGER,
-          cost_usd REAL, cost_per_correct REAL,
+           cost_usd REAL, cost_per_correct REAL,
+           quality REAL, judge_cost_usd REAL,
           PRIMARY KEY (run_id, dim)
         );
         CREATE TABLE IF NOT EXISTS results (
@@ -63,13 +65,30 @@ def migrate(conn: sqlite3.Connection):
           qid TEXT NOT NULL, dim TEXT NOT NULL, correct INTEGER, error TEXT,
           finish_reason TEXT, latency_s REAL, ttft_s REAL,
           reasoning_ttft_s REAL, in_tok INTEGER, out_tok INTEGER,
-          reasoning_tok INTEGER, reply TEXT
+           reasoning_tok INTEGER, quality REAL,
+           judge_in_tok INTEGER, judge_out_tok INTEGER, judge_latency_s REAL,
+           reply TEXT
         );
         CREATE INDEX IF NOT EXISTS runs_model_effort_started ON runs(model, effort, started_at);
         CREATE INDEX IF NOT EXISTS runs_status_finished ON runs(status, finished_at);
         CREATE INDEX IF NOT EXISTS results_run ON results(run_id);
-        PRAGMA user_version=1;
-        """)
+         PRAGMA user_version=1;
+         """)
+        version = 1
+    if version < 2:
+        additions = {
+            "runs": (("judge_model", "TEXT"), ("judge_price_in", "REAL"), ("judge_price_out", "REAL")),
+            "run_dims": (("quality", "REAL"), ("judge_cost_usd", "REAL")),
+            "results": (("quality", "REAL"), ("judge_in_tok", "INTEGER"),
+                        ("judge_out_tok", "INTEGER"), ("judge_latency_s", "REAL")),
+        }
+        for table, columns in additions.items():
+            existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+            for name, kind in columns:
+                if name not in existing:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {kind}")
+        conn.execute("PRAGMA user_version=2")
+        version = 2
     return version
 
 
