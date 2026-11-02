@@ -25,6 +25,7 @@ Intervals shorter than the heartbeat period behave as one heartbeat period. A ne
 - Queue: FIFO. Up to `run.parallel_models` models run at once.
 - A cycle for a model: for each selected effort, in the order low, medium, high, run the model's selected dimensions. Efforts of one model never overlap; questions within a run are serial, so a model's own load does not distort its latency.
 - Question seed: the UTC date of the tick that triggered the cycle ([benchmark.md](benchmark.md#generation)). All models triggered on the same day get identical questions; repeated cycles on the same day repeat the questions, which also exposes run-to-run variance.
+- A run aborted by the consecutive-error rule ([metrics.md](metrics.md#errors)) leaves `last_trigger_at` unchanged.
 - On startup, runs left `running` become `aborted`; queued work is dropped and recomputed at the next tick.
 - Manual run: CLI, same code path, `trigger = 'manual'`, limited to chosen models, ignores intervals.
 
@@ -47,7 +48,7 @@ Gateway behaviour behind this is taken from CLIProxyAPI v8.0.48 source and docs;
 
 Estimates, not measurements. Replace with measured numbers after the first full cycle.
 
-Per run (82 questions, all dimensions): input about 14k tokens; output about 28k without extended thinking, about 110k with it; hard cap `82 × run.max_tokens` (about 1.34M at the default). Writing questions add 12 judge calls per run, each about 1k input and under 1k output tokens at `judge.effort = low` (estimate). A run with fewer dimensions scales down proportionally.
+Per run (58 questions, all dimensions): input about 10k tokens; output about 20k without extended thinking, about 80k with it; hard cap `58 × run.max_tokens` (about 0.95M at the default). Writing questions add 12 judge calls per run, each about 1k input and under 1k output tokens at `judge.effort = low` (estimate). A run with fewer dimensions scales down proportionally.
 
 ```
 runs per day = sum over enabled models of (24 / interval_h × selected efforts)

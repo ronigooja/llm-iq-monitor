@@ -11,13 +11,14 @@ In scope:
 - Runtime: per-question latency, time to first token, wall time, availability.
 - Cost per correct answer, from real token usage and listed prices ([cost.md](cost.md)).
 - Writing quality of marketing copy in Chinese and English: machine-checked constraints give `score`; a judge model gives a separate `quality` ([benchmark.md](benchmark.md#writing-and-judge)).
+- Drawing quality as human-rated SVG samples ([benchmark.md](benchmark.md#ui-samples)).
 - History of all of the above.
 - Per-model choice of enabled state, interval, dimensions and efforts ([config.md](config.md#per-model-settings)).
-- Public read-only JSON API and a one-page website.
+- Public read-only JSON API and a small website with three pages ([web.md](web.md)).
 
 Out of scope (do not add):
 - Context length, multimodal, safety, throughput benchmarking of the gateway itself.
-- Subjective or LLM-judged quality anywhere except the two writing dimensions. The SVG/pelican test is excluded.
+- Subjective quality anywhere except the two writing dimensions (judged) and the `ui` dimension (human-rated).
 - Comparison with or ingestion of third-party leaderboards.
 - An overall or combined score across dimensions: routing picks a model per capability.
 - Ranking by cost, or a combined value score. Cost is an auxiliary number next to score and latency.
@@ -36,7 +37,7 @@ Out of scope (do not add):
 | Model | A model id from the gateway's model list |
 | Effort | Reasoning effort sent with every request: `low`, `medium` or `high` |
 | Target | A model plus an effort, written `model@effort`. The unit that is run, scored and charted |
-| Dimension | One of eight question groups ([benchmark.md](benchmark.md#dimensions)). Also called capability in the UI |
+| Dimension | One of six question groups ([benchmark.md](benchmark.md#dimensions)). Also called capability in the UI |
 | Question | One generated prompt with a machine-checkable answer |
 | Judge | The model that rates writing replies for `quality` ([config.md](config.md#global-settings)) |
 | Heartbeat | The single global cron that wakes the runner ([scheduling.md](scheduling.md#heartbeat)) |

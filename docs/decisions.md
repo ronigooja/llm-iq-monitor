@@ -14,6 +14,11 @@
 | Efforts | `low`, `medium`, `high` only; no `default`. A newly enabled model starts with `medium`. Each effort is its own target |
 | Question seed | The UTC date |
 | Max output tokens | Default 16384, adjustable |
+| Dimensions for routing | Six: `reasoning`, `code`, `instruction`, `write_zh`, `write_en`, `ui`, each with a "use it when" description so a router can map a task to a dimension. `math` and `science` are legacy and off by default ([benchmark.md](benchmark.md#dimensions)) |
+| UI dimension | Pelican-style SVG with a seeded variant, shown on the site, rated 1–10 stars by a person with a rating key; the key is generated on the host ([benchmark.md](benchmark.md#ui-samples), [deployment.md](deployment.md#rating-key)) |
+| Pages | Real paths `/`, `/compare`, `/ui`, not `#` routing ([web.md](web.md)) |
+| Concurrency | `run.parallel_models` is 1 because the gateway limits capacity |
+| Errors | No retries; stream errors void the question; consecutive capacity errors abort the run early ([metrics.md](metrics.md#errors)) |
 | Writing dimensions | `write_zh` and `write_en`, 6 questions each, scored separately. Rule checks give `score`; a judge model gives a separate `quality` ([benchmark.md](benchmark.md#writing-and-judge)) |
 | Self-judging | Allowed: a model that is the judge still gets a `quality` ([benchmark.md](benchmark.md#writing-and-judge)) |
 | Dimension selection | Global default and per model, multi-select, all checked by default ([config.md](config.md#per-model-settings)) |
@@ -31,7 +36,7 @@
 | Public | API and website are public |
 | Repo | `ronigooja/llm-iq-monitor` on GitHub, public. The user will make it private later. Host address stays in the docs |
 | Third-party leaderboards | No comparison with Artificial Analysis or others |
-| Excluded tests | SVG/pelican test |
+| Excluded tests | Seahorse-emoji questions. The SVG/pelican test is no longer excluded: it is the `ui` dimension with variants, rated by a person |
 | Connectivity check | Not needed before building the client |
 
 ## Decided by the agent from research (change on request)

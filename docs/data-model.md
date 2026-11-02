@@ -59,15 +59,28 @@ results(
   correct INTEGER, error TEXT, finish_reason TEXT,
   latency_s REAL, ttft_s REAL, reasoning_ttft_s REAL,   -- raw times
   in_tok INTEGER, out_tok INTEGER, reasoning_tok INTEGER,
+  http_status INTEGER, error_detail TEXT,   -- errors only, never public, see metrics.md#errors
   quality REAL,                 -- writing only
   judge_in_tok INTEGER, judge_out_tok INTEGER, judge_latency_s REAL,
   reply TEXT                    -- truncated, see retention
 );
 ```
 
-Indexes: `runs(model, effort, started_at)`, `runs(status, finished_at)`, `results(run_id)`.
+ui_samples(
+  id INTEGER PRIMARY KEY,
+  run_id INTEGER NOT NULL REFERENCES runs(id),
+  prompt_key TEXT NOT NULL,     -- 'classic' | 'variant'
+  prompt TEXT NOT NULL,         -- the prompt as sent (the variant differs per seed)
+  svg TEXT,                     -- sanitised SVG; null after it was replaced by a newer sample
+  valid INTEGER NOT NULL,       -- 0 when the reply failed the SVG rules
+  stars INTEGER,                -- 1..10 or null while unrated
+  rated_at REAL,
+  created_at REAL NOT NULL
+);
 
-`prices`, `runs.price_*`, `runs.judge_*`, `runs.rtt_ms`, `run_dims.judge_cost_usd` and `results` are not readable through the public API ([api.md](api.md#exposure-rules)).
+Indexes: `ui_samples(run_id)`, `ui_samples(stars, created_at)`, `runs(model, effort, started_at)`, `runs(status, finished_at)`, `results(run_id)`.
+
+`prices`, `ui_samples` (only the public queries read it), `runs.price_*`, `runs.judge_*`, `runs.rtt_ms`, `run_dims.judge_cost_usd` and `results` are not readable through the public API ([api.md](api.md#exposure-rules)).
 
 ## Retention
 
@@ -78,7 +91,7 @@ Indexes: `runs(model, effort, started_at)`, `runs(status, finished_at)`, `result
 
 ## Migrations
 
-Schema version in `PRAGMA user_version`. Migrations are forward-only SQL steps run by the CLI at startup. Step 2 adds the writing and judge columns; existing rows keep null there and all earlier data stays untouched.
+Schema version in `PRAGMA user_version`. Migrations are forward-only SQL steps run by the CLI at startup. Step 2 adds the writing and judge columns; step 3 adds `ui_samples` and the error-detail columns of `results` (`http_status`, `error_detail`); existing rows keep null there and all earlier data stays untouched.
 
 ## Backup
 

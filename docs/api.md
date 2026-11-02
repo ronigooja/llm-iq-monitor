@@ -1,6 +1,6 @@
 # API
 
-Public, read-only, JSON, no authentication. Provided by [Datasette](https://datasette.io) 0.65.5 (Apache-2.0) serving canned queries, not by custom code. Field semantics: [metrics.md](metrics.md), [cost.md](cost.md). There are no write or trigger endpoints.
+Public, read-only, JSON, no authentication. Provided by [Datasette](https://datasette.io) 0.65.5 (Apache-2.0) serving canned queries, not by custom code. Field semantics: [metrics.md](metrics.md), [cost.md](cost.md). The only write endpoint is `rate`; there are no trigger endpoints.
 
 ## Conventions
 
@@ -19,6 +19,9 @@ Public, read-only, JSON, no authentication. Provided by [Datasette](https://data
 | `ranking` | `dim` (required: a dimension key, including `write_zh` and `write_en`), `effort` (optional) | Ranking for one capability: the latest finished run of each model × effort that ran the dimension, ordered by score descending, then `latency_p50` ascending, null scores last |
 | `series` | `model`, `effort`, `dim` (all required), `from`, `to`, `dataset_version` (optional) | History points, time ascending, at most 2000 rows |
 | `models` | none | One row per model × effort that has finished runs |
+| `dimensions` | none | The dimensions with a one-line "use it when" description, in display order ([benchmark.md](benchmark.md#dimensions)) |
+| `ui_samples` | `model`, `effort` (optional) | Latest SVG samples with stars, newest first, at most 200 rows |
+| `rate` | `sample_id`, `stars` (POST, key required) | Sets the stars of one sample; the only write endpoint |
 | `health` | none | Liveness of the pipeline |
 
 Columns:
@@ -26,13 +29,17 @@ Columns:
 - `series`: `t`, `run_id`, `dataset_version`, `score`, `quality`, `latency_p50`, `latency_p95`, `ttft_p50`, `time_total`, `availability`, `cost_per_correct`.
 - `models`: `model`, `effort`, `active`, `dims`, `last_finished_at`, `last_status`.
 - `health`: `last_finished_at`, `running_runs`, `prices_fetched_at`.
+- `dimensions`: `dim`, `name`, `use_when`, `kind`.
+- `ui_samples`: `sample_id`, `model`, `effort`, `prompt_key`, `prompt`, `svg`, `valid`, `stars`, `created_at`. `svg` is null for replaced samples.
+- `rate`: returns `{"ok": true, "message": ...}`. A star value outside 1–10 or an unknown sample id changes 0 rows and still returns `ok`; the caller must read the sample back.
 
 Runs with status `unsupported`, `aborted` or `running` are excluded from `ranking` and `series`.
 
 ## Exposure rules
 
 - Arbitrary SQL, database download and direct table access are disabled; only the queries above are reachable. Verified on Datasette 0.65.5 on 2026-11-02 against a test database: `/monitor.json`, `/monitor/<table>.json` and `/monitor.db` returned 403, canned queries returned 200.
-- Never exposed: question text, expected answers, tests, replies, unit prices, price list, raw (unadjusted) times, judge prompts, judge cost. Costs are derived values only ([cost.md](cost.md#price-source)).
+- `rate` needs the rating key as `Authorization: Bearer <key>`; without it, or with a wrong key, it returns 403 (verified on Datasette 0.65.5 with `datasette-auth-tokens` 0.3, 2026-11-02). Every other query is public.
+- Never exposed: question text, expected answers, tests, replies (except the SVG of UI samples), unit prices, price list, raw (unadjusted) times, judge prompts, judge cost. Costs are derived values only ([cost.md](cost.md#price-source)).
 - Replies, raw times and price snapshots exist only in tables that are not directly readable ([data-model.md](data-model.md)).
 - Abuse control is done at nginx/Cloudflare ([deployment.md](deployment.md#nginx)), not in the app.
 - Datasette also renders an HTML page for each canned query; it exposes nothing beyond the JSON.

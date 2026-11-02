@@ -1,6 +1,6 @@
 # Web
 
-One static page served by Datasette (`--static` for assets, a template override for `/`). No build step. Data comes only from the public queries ([api.md](api.md)). There are no other pages: no model detail page.
+Three pages served by Datasette (`--static` for assets, templates under `deploy/templates/pages/`). Real paths, no `#` routing: `/` (Scores), `/compare` (Compare), `/ui` (UI samples). Data comes only from the public queries ([api.md](api.md)). No model detail page. No build step.
 
 ## Style rules
 
@@ -9,8 +9,8 @@ One static page served by Datasette (`--static` for assets, a template override 
 - JavaScript is required; there is no static fallback.
 - Line charts: uPlot, vendored in `web/vendor/` (no CDN). Bar rankings: plain HTML/CSS.
 - No attribution or disclaimer text.
-- Latency is shown as "time to solve" (request start to end of reply, thinking included, network round trip removed), not as network delay. The Compare tab carries a one-line legend.
-- Capabilities are the eight dimensions ([benchmark.md](benchmark.md#dimensions)). There is no overall score.
+- Latency is shown as "time to solve" (request start to end of reply, thinking included, network round trip removed), not as network delay. The Compare page carries a one-line legend.
+- Capabilities are the six dimensions ([benchmark.md](benchmark.md#dimensions)). There is no overall score.
 
 ## Cache
 
@@ -18,23 +18,34 @@ Cloudflare caches `/static/*` for hours. After changing `web/app.js` or `web/sty
 
 ## Layout
 
-Top of the page: two tabs, **Scores** and **Compare**, the tab in the URL hash (`#scores`, `#compare`), and a range switch (7d, 30d, 90d, all) for the Scores tab. Footer: dataset version and time of the last finished run.
+All pages share one header (title, page links **Scores**, **Compare**, **UI**; the current one is highlighted) and one footer (dataset version, time of the last finished run). The range switch (7d, 30d, 90d, all) appears on Scores only. The Compare page and the UI page each have their own script; `app.js` holds the shared helpers.
 
-## Tab: Scores
+## Dimension names
+
+Buttons and cards use the names from the `dimensions` query: the dimension key plus its "use it when" text as a tooltip. `write_zh` is shown as "Writing · 中文", `write_en` as "Writing · English", `ui` as "Drawing (SVG)".
+
+## Page: Scores (`/`)
 
 - Model cards stacked vertically, ordered alphabetically by model id. Models without finished runs are not shown.
 - Each card has a header (model id, availability, last run time), two button rows, and one chart.
-  - Capability buttons: the dimensions the model has runs for (up to eight). Initial: the first in dimension order.
+  - Capability buttons: the dimensions the model has runs for (up to six). Initial: the first in dimension order.
   - Effort buttons: the efforts the model has runs for. Initial: `medium`, else `high`, else `low`.
 - The chart shows the selected capability and effort over time: score as a solid line on the left axis (fixed 0–100), latency p50 as a dashed line on the right axis (auto, linear). For `write_zh` and `write_en`, `quality` is added as a dotted line on the left axis and labelled "judged".
 - A card loads its data (`series`, plus `ranking` for the header) when it scrolls into view.
 
-## Tab: Compare
+## Page: Compare (`/compare`)
 
-- Eight capability cards stacked vertically, in dimension order. Display names: `write_zh` is "Writing · 中文", `write_en` is "Writing · English".
+- Capability cards stacked vertically, one per dimension with data, in dimension order. `ui` rows show stars × 10 and the number of rated samples instead of latency.
 - Each card is a horizontal ranking from the `ranking` query for that capability: one row per model × effort, ordered by rank, latest run of each. Rows without a score show no bar and are listed last.
 - A row shows: rank, `model@effort`, a bar whose length is the score (scale 0–100), a dot on the same track positioned by latency p50 on the card's own latency axis (0 to the card's maximum), and text at the end of the row: `score · latency · $cost per correct`, for example `91.7 · 14s · $0.012`. Writing rows add the judged value as `score · quality (judged) · latency · $cost`, for example `83.3 · 78 judged · 14s · $0.012`; `quality` never changes row order. A null cost shows `—`.
 - Cost is text only. It is not a sort key or a chart ([overview.md](overview.md#scope)).
+
+## Page: UI (`/ui`)
+
+- A grid of the latest samples, newest first: the SVG shown as an image, model and effort, the prompt, and the stars (read-only by default). Invalid samples show a placeholder.
+- Rating key: a field at the bottom of the page. The key is checked with the `rate` query's authentication ([api.md](api.md#exposure-rules)); if accepted, the page keeps the key in `sessionStorage` (not a cookie, not in the URL) and every sample gets 10 clickable stars. A wrong key shows "key not accepted" and nothing changes.
+- After a click the page sends `rate`, then reads the sample back and shows the stored stars, because an out-of-range value changes nothing.
+- SVG is never inlined into the page DOM: it is set as `<img src="data:image/svg+xml;...">`, so scripts and external loads inside it do not run. The page also sets a strict `Content-Security-Policy` (no inline scripts except the page's own file, `img-src data:`).
 
 ## Charts
 

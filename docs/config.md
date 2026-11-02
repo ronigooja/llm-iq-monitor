@@ -23,14 +23,15 @@ Precedence, highest first: environment variable `GATEWAY_API_KEY` (key only) →
 | `prices.url` | `https://models.dev/api.json` | Price list ([cost.md](cost.md#price-source)) |
 | `prices.refresh_cron` | `30 3 * * *` (UTC) | When the price list is refreshed |
 | `models.default_interval_h` | 6 | Interval for models without their own |
-| `models.default_dims` | all eight ([benchmark.md](benchmark.md#dimensions)) | Dimensions for models without their own |
+| `models.default_dims` | all six ([benchmark.md](benchmark.md#dimensions)) | Dimensions for models without their own. `math` and `science` exist as legacy dimensions and are never part of the default |
 | `models.default_efforts` | `["medium"]` | Efforts for models without their own |
-| `run.parallel_models` | 3 | Models run concurrently ([scheduling.md](scheduling.md#execution)) |
+| `run.parallel_models` | 1 | Models run concurrently ([scheduling.md](scheduling.md#execution)) |
 | `run.timeout_s` | 600 | Per-question timeout |
 | `run.max_tokens` | 16384 | Max output tokens per question |
 | `judge.model` | `claude-opus-5-5` | Model that rates writing quality ([benchmark.md](benchmark.md#writing-and-judge)). Must have a price |
 | `judge.effort` | `low` | Reasoning effort sent to the judge: `low`, `medium` or `high` |
 | `net.rtt_fallback_ms` | 30 | Network round trip used when it cannot be measured ([metrics.md](metrics.md#network-round-trip)) |
+| `ui.sample_max_age_days` | 7 | A target gets a new UI sample for a prompt once the previous one is rated or this old ([benchmark.md](benchmark.md#ui-samples)) |
 | `retention.reply_days` | 14 | Days to keep raw replies ([data-model.md](data-model.md#retention)) |
 
 ## Per-model settings

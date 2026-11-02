@@ -43,10 +43,11 @@ Versions marked verified were checked on PyPI or npm on 2026-11-02; pin the othe
 
 | Package | Use | Version |
 |---|---|---|
-| datasette | API and static hosting | 0.65.5 (verified, Python ≥3.10) |
+| datasette | API, pages and static hosting | 0.65.5 (verified, Python ≥3.10) |
 | questionary | Config menu | 2.1.1 (verified) |
 | APScheduler | Cron jobs | 3.11.3 (verified). Not 4.x: still alpha |
 | httpx | Streaming client, price fetch | 0.28.x |
+| datasette-auth-tokens | Bearer-token auth for the `rate` query | 0.3 (verified on PyPI and locally, Apache-2.0) |
 | pydantic-settings | Settings validation | current 2.x |
 | tomli-w | Write `settings.toml` (stdlib `tomllib` only reads) | current |
 | watchfiles | Settings hot-reload | current 1.x |
@@ -80,13 +81,14 @@ src/llm_iq_monitor/
   questions/       one module per dimension + registry
   scoring.py
   judge.py         writing quality rating
+  ui.py            SVG checks and sample storage
   sandbox.py
   gateway.py
   runner.py        cycle execution
   aggregate.py
   db.py            schema + migrations
   cli.py
-web/               index.html, app.js, style.css, vendor/uplot
+web/               app.js (shared), scores.js, compare.js, ui.js, style.css, vendor/uplot
 deploy/
   metadata.yaml    Datasette permissions and canned queries
   *.service        systemd units
@@ -95,6 +97,6 @@ tests/
 
 ## Invariants
 
-- Questions, expected answers, raw replies and unit prices never leave the host ([api.md](api.md#exposure-rules)).
+- Questions, expected answers, raw replies and unit prices never leave the host; the only published model output is the SVG of UI samples ([api.md](api.md#exposure-rules)).
 - A failed request is recorded, never retried ([metrics.md](metrics.md#errors)).
 - `score` never depends on an LLM judge. Only the writing dimensions have a judged `quality`, stored and shown separately.

@@ -24,19 +24,23 @@ Times marked raw are stored as measured and adjusted at aggregation ([Network ro
 | Class | Meaning |
 |---|---|
 | `timeout` | no complete reply within the per-question timeout |
-| `http_error` | non-2xx response, including 429 and 5xx |
+| `http_error` | non-2xx response, including 429 and 5xx, or an error event inside the stream |
 | `network_error` | connection or stream failure |
 | `empty_reply` | stream ended with no content |
+| `truncated_stream` | the stream ended without `[DONE]` and without a finish reason |
 
 Rules:
 - No retries. Availability is itself a routing signal.
 - An errored question has `correct = null` and is excluded from the score but counted in availability.
+- The HTTP status and the first 300 characters of the error message are stored in `results.http_status` and `results.error_detail`. They are never public ([api.md](api.md#exposure-rules)).
+- An error event inside an HTTP 200 stream (a `data:` line whose JSON has an `error` object) makes the whole question an `http_error`; the partial content is not scored. Evidence: CLIProxyAPI emits `data: {"error":{...}}` after a stream has started and does not send `[DONE]` after a truncated stream (checked in its source on 2026-11-02; the deployed gateway version is not verified).
+- A run that sees 5 consecutive `http_error` responses with status 429, 502, 503 or 529 stops early with status `aborted` and does not update the model's trigger time, so the model is retried at the next heartbeat tick instead of after its full interval. The gateway was observed returning 502 and 503 under load on 2026-11-02.
 
 ### Effort support
 
 The effort is what the request asks for; the effort the model actually used is not verified. Reply content and reasoning token counts are never used to judge it, and results are scored as returned.
 
-The only check: if the gateway rejects the combination with HTTP 400, the run is stored with status `unsupported`, no results, and is excluded from charts and the API. It is not retried until the settings or the model list change.
+The only check: an HTTP 400 whose message says the reasoning level is not supported (contains `not supported` or `unknown level`) marks the run `unsupported`: no results, excluded from charts and the API, not retried until the settings or the model list change. Any other HTTP 400 is an ordinary `http_error`. CLIProxyAPI returns 400 with messages of the form `level "x" not supported, valid levels: ...` or `thinking not supported for this model` (source check, 2026-11-02).
 
 ## Per dimension (run_dims)
 

@@ -34,7 +34,7 @@ Two systemd units, both running as a dedicated unprivileged user, `Restart=on-fa
 | Unit | Runs |
 |---|---|
 | `llm-iq-monitor.service` | Runner ([architecture.md](architecture.md#processes)) |
-| `llm-iq-monitor-web.service` | `datasette serve` on `127.0.0.1:2839` with `deploy/metadata.yaml`, `--cors`, `--static`, `--template-dir`, and the settings `default_allow_sql off`, `allow_download off`, `default_cache_ttl 60`, `max_returned_rows 2000` |
+| `llm-iq-monitor-web.service` | `datasette serve` (plus the `datasette-auth-tokens` plugin) on `127.0.0.1:2839` with `deploy/metadata.yaml`, `--cors`, `--static`, `--template-dir`, and the settings `default_allow_sql off`, `allow_download off`, `default_cache_ttl 60`, `max_returned_rows 2000` |
 
 Install: code and virtualenv in `/opt/llm-iq-monitor`; `uv lock` / `uv sync --frozen` build the virtualenv; systemd runs `.venv/bin/python` directly (no `uv run`, no `pipx`, no Docker Compose). Release: pull the repo on the host, `uv sync --frozen`, restart both units. Before bumping `dataset_version`, dry-run it with the CLI ([benchmark.md](benchmark.md#dataset-versioning)).
 
@@ -52,6 +52,13 @@ All other settings, including the gateway URL and key, are in [config.md](config
 - The key is entered through the config menu ([config.md](config.md#interactive-menu)) on the host and stored in `$LLM_IQ_CONFIG_DIR/secrets.env`, mode 600, owned by the service user; the Runner unit reads it through `EnvironmentFile`. The Web unit does not read it.
 - The agent never handles the key; the user types it into the menu.
 - The repo contains no key and no `secrets.env`.
+
+## Rating key
+
+- A random token that unlocks the `rate` query ([api.md](api.md#exposure-rules)). Stored in `$LLM_IQ_CONFIG_DIR/rating.env` as `RATING_TOKEN=...`, mode 600, readable by the service user; the Web unit reads it through `EnvironmentFile`. The Runner does not read it.
+- Generated on the host by the setup step and never printed by the agent. The user reads it with `cat` on the host and types it into the UI page.
+- Rotate by replacing the file contents and restarting the Web unit.
+- `datasette-auth-tokens` 0.3 (Apache-2.0) reads it from `deploy/metadata.yaml` through an environment reference.
 
 ## Code sandbox
 
