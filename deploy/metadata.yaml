@@ -1,3 +1,8 @@
+plugins:
+  datasette-auth-tokens:
+    tokens:
+      - token: {$env: RATING_TOKEN}
+        actor: {id: rater}
 databases:
   monitor:
     source: monitor.db
@@ -10,11 +15,12 @@ databases:
       runs: {allow: false}
       run_dims: {allow: false}
       results: {allow: false}
+      ui_samples: {allow: false}
     queries:
       ranking:
         allow: true
         sql: |
-          WITH latest AS (
+           WITH latest AS (
             SELECT r.id AS run_id, r.model, r.effort, r.finished_at,
                    r.dataset_version, r.status,
                     d.dim, d.score, d.quality, d.latency_p50, d.latency_p95,
@@ -29,37 +35,67 @@ databases:
               AND r.finished_at IS NOT NULL
               AND d.dim = :dim
               AND (:effort = '' OR r.effort = :effort)
-          ), ranked AS (
-            SELECT *, RANK() OVER (
-              ORDER BY CASE WHEN score IS NULL THEN 1 ELSE 0 END,
-                       score DESC, latency_p50 ASC
-            ) AS score_rank
-            FROM latest WHERE rn = 1
-          )
-          SELECT CASE WHEN score IS NULL THEN NULL ELSE score_rank END AS rank,
-                 model, effort, run_id, finished_at, dataset_version, status,
-                  availability, score, quality, latency_p50, latency_p95,
+           ), latest_ui AS (
+             SELECT r.model, r.effort, u.prompt_key, u.stars,
+                    ROW_NUMBER() OVER (
+                      PARTITION BY r.model, r.effort, u.prompt_key
+                      ORDER BY u.created_at DESC, u.id DESC
+                    ) AS sample_rn
+             FROM ui_samples u JOIN runs r ON r.id = u.run_id
+             WHERE u.valid = 1 AND u.stars IS NOT NULL
+           ), ui_scores AS (
+             SELECT model, effort, AVG(stars) * 10 AS score
+             FROM latest_ui WHERE sample_rn = 1
+             GROUP BY model, effort
+           ), effective AS (
+             SELECT l.*, CASE WHEN l.dim = 'ui' THEN us.score ELSE l.score END AS effective_score
+             FROM latest l LEFT JOIN ui_scores us ON us.model = l.model AND us.effort = l.effort
+             WHERE l.rn = 1
+           ), ranked AS (
+             SELECT *, RANK() OVER (
+               ORDER BY CASE WHEN effective_score IS NULL THEN 1 ELSE 0 END,
+                        effective_score DESC, latency_p50 ASC
+             ) AS score_rank
+             FROM effective
+           )
+           SELECT CASE WHEN effective_score IS NULL THEN NULL ELSE score_rank END AS rank,
+                  model, effort, run_id, finished_at, dataset_version, status,
+                   availability, effective_score AS score, quality, latency_p50, latency_p95,
                  ttft_p50, time_total, n, n_err, cost_usd, cost_per_correct
-          FROM ranked
-          ORDER BY CASE WHEN score IS NULL THEN 1 ELSE 0 END,
+           FROM ranked
+           ORDER BY CASE WHEN effective_score IS NULL THEN 1 ELSE 0 END,
                    score_rank, model, effort
         params: [dim, effort]
       series:
         allow: true
         sql: |
-          SELECT r.finished_at AS t, r.id AS run_id, r.dataset_version,
+           SELECT r.finished_at AS t, r.id AS run_id, r.dataset_version,
                   d.score, d.quality, d.latency_p50, d.latency_p95, d.ttft_p50,
                  d.time_total, d.availability,
                  d.cost_per_correct
-          FROM runs AS r JOIN run_dims AS d ON d.run_id = r.id
-          WHERE r.model = :model AND r.effort = :effort AND d.dim = :dim
+           FROM runs AS r JOIN run_dims AS d ON d.run_id = r.id
+           WHERE r.model = :model AND r.effort = :effort AND d.dim = :dim
             AND r.status NOT IN ('unsupported', 'aborted', 'running')
             AND r.finished_at IS NOT NULL
             AND (:from = '' OR r.finished_at >= CAST(:from AS REAL))
             AND (:to = '' OR r.finished_at <= CAST(:to AS REAL))
             AND (:dataset_version = '' OR r.dataset_version = :dataset_version)
-          ORDER BY r.finished_at ASC, r.id ASC
-          LIMIT 2000
+           AND :dim != 'ui'
+           UNION ALL
+           SELECT u.rated_at AS t, u.run_id, r.dataset_version,
+                  u.stars * 10 AS score, NULL AS quality, d.latency_p50,
+                  d.latency_p95, d.ttft_p50, d.time_total, d.availability,
+                  d.cost_per_correct
+           FROM ui_samples u JOIN runs r ON r.id = u.run_id
+             JOIN run_dims d ON d.run_id = r.id AND d.dim = 'ui'
+           WHERE :dim = 'ui' AND r.model = :model AND r.effort = :effort
+             AND u.valid = 1 AND u.stars IS NOT NULL AND u.rated_at IS NOT NULL
+             AND r.status NOT IN ('unsupported', 'aborted', 'running')
+             AND (:from = '' OR u.rated_at >= CAST(:from AS REAL))
+             AND (:to = '' OR u.rated_at <= CAST(:to AS REAL))
+             AND (:dataset_version = '' OR r.dataset_version = :dataset_version)
+           ORDER BY t ASC, run_id ASC
+           LIMIT 2000
         params: [model, effort, dim, from, to, dataset_version]
       models:
         allow: true
@@ -90,7 +126,39 @@ databases:
                           THEN finished_at END) AS last_finished_at,
                  (SELECT COUNT(*) FROM runs WHERE status = 'running') AS running_runs,
                  (SELECT MAX(fetched_at) FROM prices) AS prices_fetched_at
-          FROM runs
+           FROM runs
+      dimensions:
+        allow: true
+        sql: |
+          SELECT 'reasoning' AS dim, 'Reasoning' AS name, 'Multi-step reasoning, avoiding common-sense traps, reading tables and figures, not making things up' AS use_when, 'answer' AS kind
+          UNION ALL SELECT 'code', 'Code', 'Writing a function, reading code, fixing a bug', 'code'
+          UNION ALL SELECT 'instruction', 'Instruction following', 'Following a strict output format, extracting fields into JSON', 'text'
+          UNION ALL SELECT 'write_zh', 'Writing · 中文', 'Chinese marketing copy', 'text'
+          UNION ALL SELECT 'write_en', 'Writing · English', 'English marketing copy', 'text'
+          UNION ALL SELECT 'ui', 'Drawing (SVG)', 'Drawing and visual layout, shown as SVG', 'svg'
+      ui_samples:
+        allow: true
+        sql: |
+          SELECT u.id AS sample_id, r.model, r.effort, u.prompt_key, u.prompt,
+                 u.svg, u.valid, u.stars, u.created_at
+          FROM ui_samples u JOIN runs r ON r.id = u.run_id
+          WHERE (:model = '' OR r.model = :model)
+            AND (:effort = '' OR r.effort = :effort)
+          ORDER BY u.created_at DESC, u.id DESC
+          LIMIT 200
+        params: [model, effort]
+      whoami:
+        allow: {id: rater}
+        sql: SELECT 1 AS ok
+      rate:
+        allow: {id: rater}
+        write: true
+        sql: |
+          UPDATE ui_samples
+          SET stars = CAST(:stars AS INTEGER), rated_at = strftime('%s','now')
+          WHERE id = CAST(:sample_id AS INTEGER) AND valid = 1 AND svg IS NOT NULL
+            AND CAST(:stars AS INTEGER) BETWEEN 1 AND 10
+        params: [sample_id, stars]
 settings:
   default_allow_sql: false
   allow_download: false
