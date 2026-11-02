@@ -4,14 +4,14 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>LLM IQ Monitor</title>
   <link rel="stylesheet" href="/static/vendor/uplot/uPlot.min.css">
-  <link rel="stylesheet" href="/static/style.css?v=6">
+  <link rel="stylesheet" href="/static/style.css?v=7">
 </head>
 <body>
   <main id="app">
-    <header><h1>LLM IQ Monitor</h1><nav><button data-tab="scores">Scores</button><button data-tab="compare">Compare</button></nav><div id="ranges" class="ranges"><button data-range="7d">7d</button><button data-range="30d">30d</button><button data-range="90d">90d</button><button data-range="all">all</button></div></header>
-    <section id="scores" class="tab"></section><section id="compare" class="tab" hidden></section>
+    <header><h1>LLM IQ Monitor</h1><nav><a href="/" aria-current="page">Scores</a><a href="/compare">Compare</a><a href="/ui">UI</a></nav><div id="ranges" class="ranges"><button data-range="7d">7d</button><button data-range="30d">30d</button><button data-range="90d">90d</button><button data-range="all">all</button></div></header>
+    <section id="scores" class="tab"></section>
     <footer>Dataset <span id="dataset">—</span> · Last finished run <span id="last-run">—</span></footer>
   </main>
-  <script src="/static/vendor/uplot/uPlot.iife.min.js"></script><script src="/static/app.js?v=6"></script>
+  <script src="/static/vendor/uplot/uPlot.iife.min.js"></script><script src="/static/app.js?v=7"></script><script src="/static/scores.js?v=7"></script>
 </body>
 </html>

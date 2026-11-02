@@ -138,6 +138,18 @@ wheels = [
 ]
 
 [[package]]
+name = "datasette-auth-tokens"
+version = "0.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "datasette" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/37/e8/9232738f0a0e825be9dec92244b1fb48ec897b04dbd599237cf1e3239319/datasette-auth-tokens-0.3.tar.gz", hash = "sha256:526ce6f150e729e51c6df283238c58885a437eeb90d80a12357d4a454ba6f36e", size = 8254, upload-time = "2021-10-15T00:58:50.885Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b5/20/7da7b8970560a98a7b604cddeb4ec834681f5778de5f8ec893d71b991a8a/datasette_auth_tokens-0.3-py3-none-any.whl", hash = "sha256:6318fa366e3c7d98f0e1f09f1918fab45b51d46087585642aa369627a612bd42", size = 8752, upload-time = "2021-10-15T00:58:49.076Z" },
+]
+
+[[package]]
 name = "flexcache"
 version = "0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -262,6 +274,7 @@ source = { editable = "." }
 dependencies = [
     { name = "apscheduler" },
     { name = "datasette" },
+    { name = "datasette-auth-tokens" },
     { name = "httpx" },
     { name = "pydantic-settings" },
     { name = "questionary" },
@@ -279,6 +292,7 @@ dev = [
 requires-dist = [
     { name = "apscheduler", specifier = ">=3.11,<4" },
     { name = "datasette", specifier = "==0.65.5" },
+    { name = "datasette-auth-tokens", specifier = "==0.3" },
     { name = "httpx", specifier = ">=0.28,<0.29" },
     { name = "pydantic-settings", specifier = ">=2.4" },
     { name = "questionary", specifier = "==2.1.1" },
