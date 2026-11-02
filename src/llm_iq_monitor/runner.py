@@ -39,6 +39,7 @@ async def run_model(model: str, *, settings, conn=None, db=None, gateway=None,
     judge_price = await _price(db, conn, judge_model) if writing else None
     rtt = await _rtt(gateway, settings)
     out = []
+    capacity_errors = 0
     for effort in efforts:
         params["reasoning_effort"] = effort
         run_id = await _call(db.create_run, conn, model=model, effort=effort, seed=seed,
@@ -52,20 +53,44 @@ async def run_model(model: str, *, settings, conn=None, db=None, gateway=None,
                                started_at=time.time(), status="running", rtt_ms=rtt)
         had_error = False
         unsupported = False
+        aborted = False
         try:
             for dim in dimensions:
                 questions = _generate(dim, seed)
                 if inspect.isawaitable(questions):
                     questions = await questions
                 for question in questions:
+                    if dim == "ui":
+                        prompt_key = _v(question, "meta", {}).get("prompt_key")
+                        due = await _call(db.ui_sample_due, conn, model, effort, prompt_key,
+                                           getattr(getattr(settings, "ui", None), "sample_max_age_days", 7)) if hasattr(db, "ui_sample_due") else True
+                        if not due:
+                            continue
                     started = time.perf_counter()
                     try:
                         reply = await gateway.chat(model, [{"role": "user", "content": question.prompt}],
                                                     effort=effort, max_tokens=_v(settings.run, "max_tokens"),
                                                     timeout=_v(settings.run, "timeout_s"))
-                        if getattr(reply, "error", None): raise RuntimeError(reply.error)
-                        correct = await _score(question, reply.reply)
+                        if getattr(reply, "error", None):
+                            raise RuntimeError(reply.error)
+                        if dim == "ui":
+                            ui_module = _lazy("llm_iq_monitor.ui")
+                            svg, valid = ui_module.sanitize_svg(reply.reply)
+                            fields = dict(qid=question.qid, dim=dim, correct=None, error=None,
+                                          http_status=None, error_detail=None,
+                                          finish_reason=reply.finish_reason, latency_s=reply.latency_s,
+                                          ttft_s=reply.ttft_s, reasoning_ttft_s=reply.reasoning_ttft_s,
+                                          in_tok=reply.in_tok, out_tok=reply.out_tok, reasoning_tok=reply.reasoning_tok,
+                                          quality=None, judge_in_tok=None, judge_out_tok=None, judge_latency_s=None,
+                                          reply=reply.reply[:2000])
+                            await _call(db.insert_result, conn, run_id, **fields)
+                            await _call(db.insert_ui_sample, conn, run_id, prompt_key,
+                                         question.prompt, svg, valid)
+                            capacity_errors = 0
+                            continue
+                        correct = False if reply.finish_reason == "length" else await _score(question, reply.reply)
                         fields = dict(qid=question.qid, dim=dim, correct=int(bool(correct)), error=None,
+                                       http_status=None, error_detail=None,
                                       finish_reason=reply.finish_reason, latency_s=reply.latency_s,
                                       ttft_s=reply.ttft_s, reasoning_ttft_s=reply.reasoning_ttft_s,
                                       in_tok=reply.in_tok, out_tok=reply.out_tok, reasoning_tok=reply.reasoning_tok,
@@ -73,30 +98,50 @@ async def run_model(model: str, *, settings, conn=None, db=None, gateway=None,
                                        reply=reply.reply[:2000])
                         if question.kind == "rules" and dim in ("write_zh", "write_en"):
                             from llm_iq_monitor.judge import judge_reply
-                            judged = await judge_reply(
-                                gateway, judge_model, judge_effort, _v(question, "meta", {}).get("brief", {}),
-                                reply.reply, "zh" if dim == "write_zh" else "en",
-                                max_tokens=_v(settings.run, "max_tokens"), timeout=_v(settings.run, "timeout_s"),
-                            )
-                            fields.update(quality=judged.quality, judge_in_tok=judged.in_tok,
-                                          judge_out_tok=judged.out_tok, judge_latency_s=judged.latency_s)
+                            try:
+                                judged = await judge_reply(
+                                    gateway, judge_model, judge_effort, _v(question, "meta", {}).get("brief", {}),
+                                    reply.reply, "zh" if dim == "write_zh" else "en",
+                                    max_tokens=_v(settings.run, "max_tokens"), timeout=_v(settings.run, "timeout_s"),
+                                )
+                                fields.update(quality=judged.quality, judge_in_tok=judged.in_tok,
+                                              judge_out_tok=judged.out_tok, judge_latency_s=judged.latency_s)
+                            except Exception:
+                                pass
+                        capacity_errors = 0
                     except Exception as exc:
                         if getattr(exc, "unsupported", False):
                             await _call(db.finish_run, conn, run_id, status="unsupported")
                             unsupported = True
                             break
                         had_error = True
+                        error_name = getattr(exc, "error", "network_error")
+                        status = getattr(exc, "status", None)
+                        detail = getattr(exc, "detail", None)
                         fields = dict(qid=question.qid, dim=dim, correct=None,
-                                      error=getattr(exc, "error", "network_error"), finish_reason=None,
+                                      error=error_name, http_status=status, error_detail=detail, finish_reason=None,
                                       latency_s=time.perf_counter()-started, ttft_s=None,
                                       reasoning_ttft_s=None, in_tok=None, out_tok=None, reasoning_tok=None,
-                                      quality=None, judge_in_tok=None, judge_out_tok=None, judge_latency_s=None, reply=None)
+                            quality=None, judge_in_tok=None, judge_out_tok=None, judge_latency_s=None, reply=None)
+                        if error_name == "http_error" and status in {429, 502, 503, 529}:
+                            capacity_errors += 1
+                            if capacity_errors >= 5:
+                                aborted = True
+                        else:
+                            capacity_errors = 0
+                        if dim == "ui" and hasattr(db, "insert_ui_sample"):
+                            await _call(db.insert_ui_sample, conn, run_id, prompt_key,
+                                         question.prompt, None, False)
                     if not unsupported:
                         await _call(db.insert_result, conn, run_id, **fields)
+                    if aborted:
+                        break
                 else:
                     continue
                 break
-            if not unsupported:
+            if not unsupported and aborted:
+                await _call(db.finish_run, conn, run_id, status="aborted", finished_at=time.time())
+            elif not unsupported:
                 await _call(db.finish_run, conn, run_id, status="partial" if had_error else "ok",
                             finished_at=time.time())
                 aggregate = _lazy("llm_iq_monitor.aggregate")
@@ -105,6 +150,8 @@ async def run_model(model: str, *, settings, conn=None, db=None, gateway=None,
             await _call(db.finish_run, conn, run_id, status="aborted")
             raise
         out.append(run_id)
+        if aborted:
+            break
     return out
 
 

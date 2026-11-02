@@ -41,8 +41,11 @@ async def test_gateway_errors_and_http_400_unsupported():
         await call(500)
     assert exc.value.error == "http_error" and not exc.value.unsupported
     with pytest.raises(GatewayError) as exc:
-        await call(400)
+        await call(400, "level not supported")
     assert exc.value.error == "http_error" and exc.value.unsupported
+    with pytest.raises(GatewayError) as exc:
+        await call(400, "bad request")
+    assert exc.value.error == "http_error" and not exc.value.unsupported
 
     empty = httpx.MockTransport(lambda request: httpx.Response(
         200, text="data: {\"choices\":[{\"delta\":{}}]}\ndata: [DONE]\n"))
