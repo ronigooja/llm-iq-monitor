@@ -40,6 +40,13 @@ async def test_canned_queries_and_exposure(client):
 
 
 @pytest.mark.asyncio
+async def test_ui_samples_has_expected_columns(client):
+    response = await client.get("/monitor/ui_samples.json", params={"_shape": "array"})
+    assert response.status_code == 200, response.text
+    assert set(response.json()[0]) == {"sample_id", "model", "effort", "prompt_key", "prompt", "svg", "valid", "stars", "created_at"}
+
+
+@pytest.mark.asyncio
 async def test_quality_is_returned_but_does_not_change_ranking(client):
     ranking = await client.get("/monitor/ranking.json", params={"dim": "write_zh", "_shape": "array"})
     assert ranking.status_code == 200, ranking.text

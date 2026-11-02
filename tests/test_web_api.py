@@ -41,6 +41,9 @@ async def test_api_page_is_public_reference(client):
     assert not re.search(r"<script[^>]*>\s*[^<]", response.text, re.I)
     assert "window.location.hash" not in response.text
     assert "location.hash" not in response.text
+    assert "cors" not in response.text.lower()
+    assert "datasette" not in response.text.lower()
+    assert "exposure" not in response.text.lower()
 
 
 def test_api_template_keys_are_registered_in_both_languages():
