@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self">
+  <title>Admin console · 管理控制台 · LLM IQ Monitor</title>
+  <link rel="stylesheet" href="/admin/static/style.css?v=1">
+  <link rel="stylesheet" href="/admin/static/admin.css?v=1">
+</head>
+<body>
+  <main id="admin-app">
+    <header><h1>LLM IQ Monitor</h1><nav><a href="/">Scores / 评分</a></nav><div id="lang-switch" role="group" aria-label="Language"><button type="button" data-lang="en" aria-pressed="true">English</button><button type="button" data-lang="zh" aria-pressed="false">中文</button></div></header>
+    <section id="login-view" class="admin-card">
+      <h2 data-i18n="admin.login">Admin sign in</h2>
+      <form id="login-form"><label for="admin-token" data-i18n="admin.token">Admin password</label><input id="admin-token" name="token" type="password" autocomplete="current-password" required><button type="submit" data-i18n="admin.signIn">Sign in</button></form>
+      <p id="login-message" class="admin-message" role="status"></p>
+    </section>
+    <section id="console-view" hidden>
+      <div class="admin-toolbar"><h2 data-i18n="admin.title">Admin console</h2><button id="logout" type="button" data-i18n="admin.signOut">Sign out</button></div>
+      <p id="load-message" class="admin-message" role="status"></p>
+      <div id="validation-summary" class="admin-errors" hidden></div>
+      <section class="admin-card" aria-labelledby="gateway-heading"><h3 id="gateway-heading" data-i18n="admin.gateway">Gateway</h3><div class="admin-grid"><label> <span data-i18n="admin.baseUrl">Base URL</span><input data-field="gateway.base_url" type="url"></label><label><span data-i18n="admin.modelsUrl">Models URL</span><input data-field="gateway.models_url" type="url"></label><label><span data-i18n="admin.gatewayKey">Gateway key</span><input id="gateway-key" type="password" autocomplete="new-password"><span id="key-status" class="admin-badge"></span></label></div><div class="admin-actions"><button id="test-connection" type="button" data-i18n="admin.testConnection">Test connection</button><span id="connection-result" class="admin-message" role="status"></span></div></section>
+      <section class="admin-card" aria-labelledby="models-heading"><div class="section-heading"><h3 id="models-heading" data-i18n="admin.models">Models</h3><div class="admin-actions"><label class="search-label"><span data-i18n="admin.search">Search models</span><input id="model-search" type="search"></label><button id="refresh-models" type="button" data-i18n="admin.refresh">Refresh models</button></div></div><div id="bulk-bar" class="bulk-bar" hidden><span id="selected-count"></span><div class="bulk-controls"><input id="bulk-interval" type="number" min="1"><div id="bulk-dims" class="compact-checks"></div><div id="bulk-efforts" class="compact-checks"></div><button id="bulk-apply" type="button" data-i18n="admin.apply">Apply</button></div></div><div class="table-scroll"><table id="models-table"><thead><tr><th></th><th data-i18n="admin.model">Model</th><th data-i18n="admin.price">Price</th><th data-i18n="admin.enabled">Enabled</th><th data-i18n="admin.interval">Interval (hours)</th><th data-i18n="admin.dimensions">Dimensions</th><th data-i18n="admin.efforts">Efforts</th></tr></thead><tbody></tbody></table></div></section>
+      <section class="admin-card" aria-labelledby="defaults-heading"><h3 id="defaults-heading" data-i18n="admin.defaults">Defaults and heartbeat</h3><div class="admin-grid"><label><span data-i18n="admin.heartbeat">Heartbeat cron</span><input data-field="schedule.heartbeat_cron"></label><label><span data-i18n="admin.defaultInterval">Default interval (hours)</span><input data-field="models.default_interval_h" type="number" min="1"></label><fieldset><legend data-i18n="admin.defaultDimensions">Default dimensions</legend><div id="default-dims" class="check-grid"></div></fieldset><fieldset><legend data-i18n="admin.defaultEfforts">Default efforts</legend><div id="default-efforts" class="check-grid"></div></fieldset></div><p class="admin-next"><span data-i18n="admin.nextTicks">Next five ticks</span>: <span id="heartbeat-next">—</span></p></section>
+      <section class="admin-card" aria-labelledby="limits-heading"><h3 id="limits-heading" data-i18n="admin.runLimits">Run limits</h3><div class="admin-grid"><label><span data-i18n="admin.parallelModels">Parallel models</span><input data-field="run.parallel_models" type="number" min="1" max="8"></label><label><span data-i18n="admin.timeout">Timeout (seconds)</span><input data-field="run.timeout_s" type="number" min="1"></label><label><span data-i18n="admin.maxTokens">Max tokens</span><input data-field="run.max_tokens" type="number" min="1"></label><label><span data-i18n="admin.rttFallback">RTT fallback (ms)</span><input data-field="net.rtt_fallback_ms" type="number" min="0"></label><label><span data-i18n="admin.replyRetention">Reply retention (days)</span><input data-field="retention.reply_days" type="number" min="0"></label></div></section>
+      <section class="admin-card" aria-labelledby="judge-heading"><h3 id="judge-heading" data-i18n="admin.judge">Judge model</h3><div class="admin-grid"><label><span data-i18n="admin.judgeModel">Model</span><select data-field="judge.model"></select></label><label><span data-i18n="admin.judgeEffort">Effort</span><select data-field="judge.effort"></select></label></div></section>
+      <section class="admin-card" aria-labelledby="overview-heading"><h3 id="overview-heading" data-i18n="admin.overview">Overview</h3><dl class="overview"><div><dt data-i18n="admin.runsPerDay">Estimated runs per day</dt><dd id="runs-per-day">—</dd></div><div><dt data-i18n="admin.tokensPerDay">Estimated tokens per day</dt><dd id="tokens-per-day">—</dd></div></dl></section>
+    </section>
+    <div id="save-bar" class="save-bar" hidden><span id="dirty-state" data-i18n="admin.unsaved">unsaved changes</span><button id="discard" type="button" data-i18n="admin.discard">Discard</button><button id="save" type="button" data-i18n="admin.save">Save</button><span id="save-message" class="admin-message" role="status"></span></div>
+    <footer><span>LLM IQ Monitor</span></footer>
+  </main>
+  <script src="/admin/static/i18n.js?v=1"></script>
+  <script src="/admin/static/admin.js?v=1"></script>
+</body>
+</html>
