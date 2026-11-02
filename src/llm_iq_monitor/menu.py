@@ -18,7 +18,8 @@ from pydantic import SecretStr
 
 from .db import connect
 from .prices import load_price_index, refresh_prices
-from .settings import DIM_COUNTS, DIMS, EFFORTS, LEGACY_DIMS, ModelSettings, Settings, save_api_key, save_settings
+from .settings import (DIM_COUNTS, DIMS, EFFORTS, LEGACY_DIMS, ModelSettings, Settings, load_settings,
+                       save_api_key, save_settings)
 
 
 def estimate_budget(settings: Settings) -> dict[str, float | int]:
@@ -182,7 +183,7 @@ def _ask(q: Any, name: str, *args: Any, **kwargs: Any) -> Any:
 
 def run_menu(settings: Settings | None = None, *, q: Any = questionary, output: Callable[[str], None] = print,
              model_fetcher: Callable[[Settings], Any] = fetch_models, price_index: dict[str, Any] | None = None) -> Settings:
-    settings = settings or Settings()
+    settings = load_settings() if settings is None else settings
     price_index = price_index if price_index is not None else load_price_index(connect())
     model_ids: list[str] = []
     section = 1
@@ -254,4 +255,4 @@ def run_menu(settings: Settings | None = None, *, q: Any = questionary, output: 
 
 
 def main_menu() -> None:
-    run_menu()
+    run_menu(load_settings())

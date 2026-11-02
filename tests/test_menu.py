@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import tomllib
 
 from llm_iq_monitor.menu import (apply_model_choice, estimate_budget, next_heartbeat_ticks,
                                  set_enabled, validate_for_save)
@@ -126,3 +127,136 @@ def test_models_section_without_prices_does_not_open_empty_checkbox(monkeypatch)
     menu.run_menu(menu.Settings(), q=Q(), output=out.append, model_fetcher=fetch, price_index={})
     assert "checkbox" not in asked
     assert any("No model has a price" in line for line in out)
+
+
+class _Answer:
+    def __init__(self, value):
+        self.value = value
+
+    def ask(self):
+        return self.value
+
+
+class _SaveAndQuitQuestionary:
+    def __init__(self):
+        self.sections = 0
+
+    def __getattr__(self, name):
+        def call(*args, **kwargs):
+            if name == "select" and args[0] == "Configuration section":
+                self.sections += 1
+                return _Answer("7 Quit")
+            if name == "password":
+                return _Answer("")
+            if name == "confirm":
+                return _Answer(args[0] == "Save settings and exit?")
+            return _Answer(kwargs.get("default", ""))
+        return call
+
+
+def test_menu_loads_and_preserves_saved_settings(monkeypatch, tmp_path):
+    from llm_iq_monitor import menu
+    from llm_iq_monitor.settings import save_api_key, save_settings
+
+    monkeypatch.setenv("LLM_IQ_CONFIG_DIR", str(tmp_path))
+    settings = Settings()
+    settings.gateway.base_url = "https://gateway.example.test/custom"
+    settings.gateway.models_url = "https://gateway.example.test/custom/models"
+    settings.models.per_model["custom-model"] = {
+        "enabled": True,
+        "interval_h": 3,
+        "dims": ["code", "write_en"],
+        "efforts": ["low", "high"],
+    }
+    settings.judge.model = "custom-judge"
+    settings.judge.effort = "high"
+    save_settings(settings)
+    save_api_key("test-key-123")
+
+    menu.run_menu(None, q=_SaveAndQuitQuestionary(), output=lambda _: None,
+                  model_fetcher=lambda _: ["custom-model", "custom-judge"],
+                  price_index={"custom-model": object(), "custom-judge": object()})
+
+    saved = tomllib.loads((tmp_path / "settings.toml").read_text())
+    assert saved["gateway"]["base_url"] == "https://gateway.example.test/custom"
+    assert saved["gateway"]["models_url"] == "https://gateway.example.test/custom/models"
+    assert saved["models"]["custom-model"] == {
+        "enabled": True,
+        "interval_h": 3,
+        "dims": ["code", "write_en"],
+        "efforts": ["low", "high"],
+    }
+    assert saved["judge"] == {"model": "custom-judge", "effort": "high"}
+
+
+def test_default_model_fetcher_uses_loaded_gateway_key(monkeypatch, tmp_path):
+    from llm_iq_monitor import menu
+    from llm_iq_monitor.settings import save_api_key, save_settings
+
+    monkeypatch.setenv("LLM_IQ_CONFIG_DIR", str(tmp_path))
+    settings = Settings()
+    settings.gateway.models_url = "https://gateway.example.test/models"
+    save_settings(settings)
+    save_api_key("test-key-123")
+    seen = {}
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def get(self, url, *, headers):
+            seen["url"] = url
+            seen["headers"] = headers
+            return Response()
+
+    class Response:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"data": [{"id": "priced-model"}]}
+
+    monkeypatch.setattr(menu.httpx, "AsyncClient", Client)
+
+    class Q(_SaveAndQuitQuestionary):
+        def __getattr__(self, name):
+            def call(*args, **kwargs):
+                if name == "select" and args[0] == "Configuration section":
+                    self.sections += 1
+                    return _Answer("2 Models" if self.sections == 1 else "7 Quit")
+                if name == "checkbox":
+                    return _Answer([])
+                if name == "confirm":
+                    return _Answer(False)
+                return _Answer(kwargs.get("default", ""))
+            return call
+
+    menu.run_menu(None, q=Q(), output=lambda _: None, price_index={"priced-model": object()})
+    assert seen == {
+        "url": "https://gateway.example.test/models",
+        "headers": {"Authorization": "Bearer test-key-123"},
+    }
+
+
+def test_menu_without_settings_starts_at_gateway(monkeypatch, tmp_path):
+    from llm_iq_monitor import menu
+
+    monkeypatch.setenv("LLM_IQ_CONFIG_DIR", str(tmp_path))
+    q = _SaveAndQuitQuestionary()
+    menu.run_menu(None, q=q, output=lambda _: None, model_fetcher=lambda _: [],
+                  price_index={"claude-opus-5-5": object()})
+    assert q.sections == 1
+
+
+def test_main_menu_loads_settings_before_starting(monkeypatch):
+    from llm_iq_monitor import menu
+
+    settings = Settings()
+    loaded = []
+    monkeypatch.setattr(menu, "load_settings", lambda: settings)
+    monkeypatch.setattr(menu, "run_menu", lambda value: loaded.append(value))
+    menu.main_menu()
+    assert loaded == [settings]
