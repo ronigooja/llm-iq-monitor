@@ -40,7 +40,7 @@ def finalize_run(conn, run_id):
         if dim == "ui":
             score = None
         else:
-            score = 100 * correct / len(good) if len(good) >= n / 2 else None
+            score = 100 * correct / n if n else None
         lat = [adjust(r["latency_s"], rtt) for r in good]
         ttft = [adjust(r["ttft_s"], rtt) for r in good]
         in_tok = sum(r["in_tok"] or 0 for r in items if r["in_tok"] is not None) or None

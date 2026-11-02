@@ -18,7 +18,8 @@ def test_finalize():
     conn.execute("UPDATE runs SET finished_at=? WHERE id=?", (now + 2, run))
     finalize_run(conn, run)
     row = conn.execute("SELECT * FROM run_dims").fetchone()
-    assert row["n"] == 2 and row["n_err"] == 1 and row["score"] == 100
+    assert row["n"] == 2 and row["n_err"] == 1 and row["score"] == 50
+    assert row["availability"] == .5
     assert conn.execute("SELECT status FROM runs").fetchone()[0] == "partial"
 
 
@@ -35,6 +36,49 @@ def test_finalize_ui_and_future_dimensions():
     future = conn.execute("SELECT * FROM run_dims WHERE dim='future'").fetchone()
     assert ui["score"] is None and ui["n"] == 1 and ui["n_err"] == 0 and ui["availability"] == 1
     assert future["score"] == 100
+
+
+def test_finalize_score_uses_all_questions_as_denominator():
+    conn = connect(":memory:")
+    conn.execute("INSERT INTO models(id,active) VALUES ('m',1)")
+    now = time.time()
+    run = create_run(conn, model="m", effort="medium", seed="s", dataset_version="v2", trigger="manual", dims='["math"]', params="{}", status="running", started_at=now)
+    for i in range(18):
+        insert_result(conn, run, qid=f"q{i}", dim="math", correct=None if i < 2 else 1,
+                      error="timeout" if i < 2 else None, latency_s=1, ttft_s=.5)
+    conn.execute("UPDATE runs SET finished_at=? WHERE id=?", (now + 2, run))
+    finalize_run(conn, run)
+    row = conn.execute("SELECT * FROM run_dims").fetchone()
+    assert row["score"] == 100 * 16 / 18
+    assert row["n"] == 18 and row["n_err"] == 2 and row["availability"] == 16 / 18
+
+
+def test_finalize_all_errors_score_zero_and_quality_keeps_half_rule():
+    conn = connect(":memory:")
+    conn.execute("INSERT INTO models(id,active) VALUES ('m',1)")
+    now = time.time()
+    run = create_run(conn, model="m", effort="medium", seed="s", dataset_version="v2", trigger="manual", dims='["math", "write_en"]', params="{}", status="running", started_at=now)
+    for i in range(3):
+        insert_result(conn, run, qid=f"m{i}", dim="math", correct=None, error="network_error", latency_s=1, ttft_s=None)
+    insert_result(conn, run, qid="w0", dim="write_en", correct=1, error=None, quality=80, latency_s=1, ttft_s=.5)
+    insert_result(conn, run, qid="w1", dim="write_en", correct=1, error=None, quality=None, latency_s=1, ttft_s=.5)
+    insert_result(conn, run, qid="w2", dim="write_en", correct=1, error=None, quality=None, latency_s=1, ttft_s=.5)
+    conn.execute("UPDATE runs SET finished_at=? WHERE id=?", (now + 2, run))
+    finalize_run(conn, run)
+    math = conn.execute("SELECT * FROM run_dims WHERE dim='math'").fetchone()
+    writing = conn.execute("SELECT * FROM run_dims WHERE dim='write_en'").fetchone()
+    assert math["score"] == 0 and math["availability"] == 0
+    assert writing["score"] == 100 and writing["quality"] is None
+
+
+def test_finalize_empty_run_has_no_scored_questions():
+    conn = connect(":memory:")
+    conn.execute("INSERT INTO models(id,active) VALUES ('m',1)")
+    now = time.time()
+    run = create_run(conn, model="m", effort="medium", seed="s", dataset_version="v2", trigger="manual", dims='[]', params="{}", status="running", started_at=now)
+    conn.execute("UPDATE runs SET finished_at=? WHERE id=?", (now + 2, run))
+    finalize_run(conn, run)
+    assert conn.execute("SELECT COUNT(*) FROM run_dims").fetchone()[0] == 0
 
 
 def test_finalize_preserves_terminal_status():

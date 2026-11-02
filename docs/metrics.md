@@ -31,7 +31,7 @@ Times marked raw are stored as measured and adjusted at aggregation ([Network ro
 
 Rules:
 - No retries. Availability is itself a routing signal.
-- An errored question has `correct = null` and is excluded from the score but counted in availability.
+- An errored question has `correct = null`, counts as wrong in the score, and is counted in availability.
 - The HTTP status and the first 300 characters of the error message are stored in `results.http_status` and `results.error_detail`. They are never public ([api.md](api.md#exposure-rules)).
 - An error event inside an HTTP 200 stream (a `data:` line whose JSON has an `error` object) makes the whole question an `http_error`; the partial content is not scored. Evidence: CLIProxyAPI emits `data: {"error":{...}}` after a stream has started and does not send `[DONE]` after a truncated stream (checked in its source on 2026-11-02; the deployed gateway version is not verified).
 - A run that sees 5 consecutive `http_error` responses with status 429, 502, 503 or 529 stops early with status `aborted` and does not update the model's trigger time, so the model is retried at the next heartbeat tick instead of after its full interval. The gateway was observed returning 502 and 503 under load on 2026-11-02.
@@ -46,7 +46,7 @@ The only check: an HTTP 400 whose message says the reasoning level is not suppor
 
 | Field | Definition |
 |---|---|
-| `score` | `100 × correct / answered`; null when `answered < n / 2` |
+| `score` | `100 × correct / n`; errored questions count as wrong; null when `n = 0` |
 | `n`, `n_err` | questions in the dimension, errored questions |
 | `availability` | `(n − n_err) / n` |
 | `latency_p50`, `latency_p95` | percentiles of adjusted `latency_s` over answered questions |
@@ -57,7 +57,7 @@ The only check: an HTTP 400 whose message says the reasoning level is not suppor
 | `quality` | writing only: mean of the non-null per-question `quality`; null when fewer than `n / 2` questions were judged |
 | `judge_cost_usd` | writing only: see [cost.md](cost.md#judge-cost) |
 
-"Answered" means not errored.
+"Answered" means not errored. It is used for latency and TTFT percentiles and run availability, not the score denominator.
 
 ## Per run
 
