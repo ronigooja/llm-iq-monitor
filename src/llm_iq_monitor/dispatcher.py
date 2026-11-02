@@ -11,6 +11,11 @@ from typing import Any, Awaitable, Callable
 log = logging.getLogger(__name__)
 
 
+def _minute(t: float) -> float:
+    # Ticks fire a few ms after the minute; compare whole minutes so the jitter cannot delay a run by a heartbeat.
+    return t - t % 60
+
+
 def _get(obj, name, default=None):
     return obj.get(name, default) if isinstance(obj, dict) else getattr(obj, name, default)
 
@@ -51,7 +56,7 @@ class Dispatcher:
             if previous is None and self.db:
                 previous = await self._last_trigger(model)
             interval = float(_get(effective, "interval_h", 1)) * 3600
-            if previous is not None and tick - previous < interval:
+            if previous is not None and _minute(tick) - _minute(previous) < interval:
                 continue
             self.last_trigger[model] = tick
             self.previous_trigger[model] = previous

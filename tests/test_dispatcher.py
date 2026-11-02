@@ -40,6 +40,16 @@ async def test_due_uses_tick_time_and_skips_unpriced_absent_and_running(monkeypa
 
 
 @pytest.mark.asyncio
+async def test_tick_jitter_does_not_delay_due_model():
+    settings = Settings({"m": SimpleNamespace(enabled=True, interval_h=6)})
+    db = DB({"m"}, {"m": 21600.019})
+    d = Dispatcher(settings, db=db, runner=lambda model, **kw: None)
+    await d.tick(43200.008, models=["m"])
+    await asyncio.gather(*d._workers)
+    assert db.triggers == [("m", 43200.008)]
+
+
+@pytest.mark.asyncio
 async def test_fifo_parallel_limit_and_manual_trigger(monkeypatch):
     models = {m: SimpleNamespace(enabled=True, interval_h=1) for m in "abc"}
     settings = Settings(models)

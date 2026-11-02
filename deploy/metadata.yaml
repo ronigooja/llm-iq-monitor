@@ -35,6 +35,7 @@ databases:
               AND r.finished_at IS NOT NULL
               AND d.dim = :dim
               AND (:effort = '' OR r.effort = :effort)
+              AND r.dataset_version = (SELECT dataset_version FROM runs ORDER BY started_at DESC, id DESC LIMIT 1)
            ), latest_ui AS (
              SELECT r.model, r.effort, u.prompt_key, u.stars,
                     ROW_NUMBER() OVER (
@@ -43,6 +44,7 @@ databases:
                     ) AS sample_rn
              FROM ui_samples u JOIN runs r ON r.id = u.run_id
              WHERE u.valid = 1 AND u.stars IS NOT NULL
+               AND r.dataset_version = (SELECT dataset_version FROM runs ORDER BY started_at DESC, id DESC LIMIT 1)
            ), ui_scores AS (
              SELECT model, effort, AVG(stars) * 10 AS score
              FROM latest_ui WHERE sample_rn = 1
@@ -107,6 +109,7 @@ databases:
             FROM runs AS r
             WHERE r.status NOT IN ('unsupported', 'aborted', 'running')
               AND r.finished_at IS NOT NULL
+              AND r.dataset_version = (SELECT dataset_version FROM runs ORDER BY started_at DESC, id DESC LIMIT 1)
           )
           SELECT f.model, f.effort,
                  m.active,
@@ -114,6 +117,7 @@ databases:
                    SELECT DISTINCT d.dim FROM runs rr JOIN run_dims d ON d.run_id = rr.id
                    WHERE rr.model = f.model AND rr.effort = f.effort
                      AND rr.status NOT IN ('unsupported', 'aborted', 'running')
+                     AND rr.dataset_version = f.dataset_version
                  ) x) AS dims,
                  f.finished_at AS last_finished_at, f.status AS last_status
           FROM finished f JOIN models m ON m.id = f.model
@@ -125,7 +129,8 @@ databases:
           SELECT MAX(CASE WHEN status NOT IN ('unsupported', 'aborted', 'running')
                           THEN finished_at END) AS last_finished_at,
                  (SELECT COUNT(*) FROM runs WHERE status = 'running') AS running_runs,
-                 (SELECT MAX(fetched_at) FROM prices) AS prices_fetched_at
+                 (SELECT MAX(fetched_at) FROM prices) AS prices_fetched_at,
+                 (SELECT dataset_version FROM runs ORDER BY started_at DESC, id DESC LIMIT 1) AS dataset_version
            FROM runs
       dimensions:
         allow: true

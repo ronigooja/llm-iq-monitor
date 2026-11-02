@@ -27,7 +27,7 @@ async def test_canned_queries_and_exposure(client):
         "ranking": {"rank", "model", "effort", "run_id", "finished_at", "dataset_version", "status", "availability", "score", "quality", "latency_p50", "latency_p95", "ttft_p50", "time_total", "n", "n_err", "cost_usd", "cost_per_correct"},
         "series": {"t", "run_id", "dataset_version", "score", "quality", "latency_p50", "latency_p95", "ttft_p50", "time_total", "availability", "cost_per_correct"},
         "models": {"model", "effort", "active", "dims", "last_finished_at", "last_status"},
-        "health": {"last_finished_at", "running_runs", "prices_fetched_at"},
+        "health": {"last_finished_at", "running_runs", "prices_fetched_at", "dataset_version"},
     }
     params = {"ranking": {"dim": "math"}, "series": {"model": "alpha", "effort": "medium", "dim": "math"}, "models": {}, "health": {}}
     for name, columns in expected.items():
@@ -53,3 +53,20 @@ async def test_quality_is_returned_but_does_not_change_ranking(client):
 
     null_quality = await client.get("/monitor/series.json", params={"model": "alpha", "effort": "medium", "dim": "write_en", "_shape": "array"})
     assert null_quality.json()[0]["quality"] is None
+
+
+@pytest.mark.asyncio
+async def test_public_views_follow_the_current_dataset_version(monitor_db):
+    import sqlite3
+    db = sqlite3.connect(monitor_db)
+    db.execute("INSERT INTO runs VALUES (5,'beta','high','20261103','v2','schedule','[\"reasoning\"]','{}',1,2,120,200,210,'ok',1,10,0.1,2,NULL,NULL,NULL)")
+    db.execute("INSERT INTO run_dims VALUES (5,'reasoning',70,18,0,1,2,3,1,24,100,50,0.1,0.01,NULL,NULL)")
+    db.commit(); db.close()
+    ds = Datasette([str(monitor_db)], metadata=yaml.safe_load((ROOT / "deploy/metadata.yaml").read_text()))
+    async with AsyncClient(transport=ASGITransport(app=ds.app()), base_url="http://test") as c:
+        get = lambda name, **p: c.get(f"/monitor/{name}.json", params={**p, "_shape": "array"})
+        assert (await get("health")).json()[0]["dataset_version"] == "v2"
+        assert (await get("ranking", dim="math")).json() == []
+        assert [r["model"] for r in (await get("ranking", dim="reasoning")).json()] == ["beta"]
+        assert [(r["model"], r["dims"]) for r in (await get("models")).json()] == [("beta", "reasoning")]
+        assert len((await get("series", model="alpha", effort="medium", dim="math")).json()) == 2

@@ -28,12 +28,12 @@ Columns:
 - `ranking`: `rank` (null when the score is null), `model`, `effort`, `run_id`, `finished_at`, `dataset_version`, `status`, `availability`, `score`, `quality`, `latency_p50`, `latency_p95`, `ttft_p50`, `time_total`, `n`, `n_err`, `cost_usd`, `cost_per_correct`. `quality` is judged, writing dimensions only, null elsewhere ([benchmark.md](benchmark.md#writing-and-judge)); it does not affect `rank`. `availability` is that dimension's `(n − n_err) / n`.
 - `series`: `t`, `run_id`, `dataset_version`, `score`, `quality`, `latency_p50`, `latency_p95`, `ttft_p50`, `time_total`, `availability`, `cost_per_correct`.
 - `models`: `model`, `effort`, `active`, `dims`, `last_finished_at`, `last_status`.
-- `health`: `last_finished_at`, `running_runs`, `prices_fetched_at`.
+- `health`: `last_finished_at`, `running_runs`, `prices_fetched_at`, `dataset_version` (the current version: that of the most recently started run).
 - `dimensions`: `dim`, `name`, `use_when`, `kind`.
 - `ui_samples`: `sample_id`, `model`, `effort`, `prompt_key`, `prompt`, `svg`, `valid`, `stars`, `created_at`. `svg` is null for replaced samples.
 - `rate`: returns `{"ok": true, "message": ...}`. A star value outside 1–10 or an unknown sample id changes 0 rows and still returns `ok`; the caller must read the sample back.
 
-Runs with status `unsupported`, `aborted` or `running` are excluded from `ranking` and `series`.
+Runs with status `unsupported`, `aborted` or `running` are excluded from `ranking` and `series`. `ranking` and `models` show only runs of the current dataset version (see `health`); `series` returns all versions unless `dataset_version` is given.
 
 ## Exposure rules
 

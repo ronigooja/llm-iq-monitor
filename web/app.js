@@ -31,11 +31,7 @@ async function loadDimensions() {
 async function loadFooter() {
   const health = (await api('health'))[0] || {};
   const last = document.querySelector('#last-run'); if (last) last.textContent = when(health.last_finished_at);
-  try {
-    const rows = await api('ranking', { dim: 'reasoning' });
-    const versions = [...new Set(rows.map(r => r.dataset_version))];
-    const dataset = document.querySelector('#dataset'); if (dataset) dataset.textContent = versions.join(', ') || '—';
-  } catch (_) {}
+  const dataset = document.querySelector('#dataset'); if (dataset) dataset.textContent = health.dataset_version || '—';
 }
 function versionMarks(rows) {
   return rows.reduce((out, r, i) => { if (i && r.dataset_version !== rows[i - 1].dataset_version) out.push([r.t, r.dataset_version]); return out; }, []);

@@ -14,7 +14,7 @@ Values live in [config.md](config.md); this doc defines behaviour.
 On every tick, for each enabled model, in this order:
 1. Skip it if it has no current price ([cost.md](cost.md#price-lookup)) or is absent from the gateway model list.
 2. Skip it if its previous cycle is running or queued.
-3. It is due if it never ran, or `tick_time − last_trigger_at ≥ interval_h` ([config.md](config.md#per-model-settings)).
+3. It is due if it never ran, or `tick_time − last_trigger_at ≥ interval_h` ([config.md](config.md#per-model-settings)), both times truncated to the whole minute so tick jitter of a few milliseconds cannot delay a run by one heartbeat.
 
 A due model gets `last_trigger_at = tick_time` and is queued. The comparison uses tick times, not the wall-clock start of the cycle, so a cycle that starts late or runs long does not push the next one back by a heartbeat. The interval therefore resolves to the heartbeat period: with an hourly heartbeat, a 6 h interval fires every 6th tick.
 
