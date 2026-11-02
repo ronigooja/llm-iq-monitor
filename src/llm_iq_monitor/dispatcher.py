@@ -3,9 +3,12 @@ from __future__ import annotations
 import asyncio
 import inspect
 import time
+import logging
 from collections import deque
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
+
+log = logging.getLogger(__name__)
 
 
 def _get(obj, name, default=None):
@@ -20,6 +23,7 @@ class Dispatcher:
         self.queue = deque()
         self.active: set[str] = set()
         self.last_trigger: dict[str, float] = {}
+        self.previous_trigger: dict[str, float | None] = {}
         self._workers: list[asyncio.Task] = []
 
     async def tick(self, tick_time: float | None = None, models: list[str] | None = None):
@@ -50,6 +54,7 @@ class Dispatcher:
             if previous is not None and tick - previous < interval:
                 continue
             self.last_trigger[model] = tick
+            self.previous_trigger[model] = previous
             await self._set_trigger(model, tick)
             self.queue.append((model, tick, "schedule"))
         await self._ensure_workers()
@@ -100,8 +105,32 @@ class Dispatcher:
             self.active.add(model)
             try:
                 if self.runner:
+                    previous = self.previous_trigger.pop(model, None)
                     result = self.runner(model, tick=tick, trigger=trigger)
-                    if asyncio.iscoroutine(result): await result
+                    if asyncio.iscoroutine(result):
+                        result = await result
+                    aborted = False
+                    run_ids = result if isinstance(result, (list, tuple)) else []
+                    if self.db and run_ids:
+                        statuses = []
+                        for run_id in run_ids:
+                            status = getattr(self.db, "run_status", None)
+                            if status is not None:
+                                value = status(run_id)
+                                if inspect.isawaitable(value):
+                                    value = await value
+                                statuses.append(value)
+                            elif hasattr(self.db, "conn"):
+                                row = self.db.conn.execute(
+                                    "SELECT status FROM runs WHERE id=?", (run_id,)
+                                ).fetchone()
+                                if row:
+                                    statuses.append(row[0])
+                        aborted = "aborted" in statuses
+                    if aborted and trigger == "schedule":
+                        await self._set_trigger(model, previous)
+                        self.last_trigger[model] = previous
+                        log.info("run aborted for %s after consecutive capacity errors", model)
             finally:
                 self.active.discard(model)
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import json
 import statistics
 import time
 from dataclasses import dataclass
@@ -27,9 +28,12 @@ class Completion:
 
 
 class GatewayError(Exception):
-    def __init__(self, error: str, message: str = "", *, unsupported: bool = False):
+    def __init__(self, error: str, message: str = "", *, unsupported: bool = False,
+                 status: int | None = None, detail: str | None = None):
         super().__init__(message or error)
         self.error, self.unsupported = error, unsupported
+        self.status = status
+        self.detail = (detail if detail is not None else message)[:300] or None
 
 
 def _usage(obj: Any) -> Any:
@@ -64,22 +68,32 @@ class Gateway:
                                      json=payload, headers=headers,
                                      timeout=timeout or self.timeout) as response:
                 if response.status_code >= 400:
-                    unsupported = response.status_code == 400
-                    raise GatewayError("http_error", f"HTTP {response.status_code}",
-                                       unsupported=unsupported)
+                    body = (await response.aread()).decode("utf-8", errors="replace")
+                    detail = body[:300] or f"HTTP {response.status_code}"
+                    lowered = body.lower()
+                    unsupported = (response.status_code == 400 and
+                                   ("not supported" in lowered or "unknown level" in lowered))
+                    raise GatewayError("http_error", detail, unsupported=unsupported,
+                                       status=response.status_code, detail=detail)
                 reply, first, reasoning_first, finish = [], None, None, None
+                done = False
+                stream_error = None
                 in_tok = out_tok = reasoning_tok = None
                 async for line in response.aiter_lines():
                     if not line or not line.startswith("data:"):
                         continue
                     raw = line[5:].strip()
                     if raw == "[DONE]":
+                        done = True
                         break
                     try:
-                        item = __import__("json").loads(raw)
+                        item = json.loads(raw)
                     except ValueError:
                         continue
                     choices = item.get("choices") or []
+                    if isinstance(item.get("error"), dict):
+                        stream_error = item["error"].get("message") or str(item["error"])
+                        break
                     if choices:
                         choice = choices[0]
                         finish = choice.get("finish_reason") or finish
@@ -97,6 +111,12 @@ class Gateway:
                         details = usage.get("completion_tokens_details") or {}
                         reasoning_tok = details.get("reasoning_tokens", reasoning_tok)
                 ended = time.perf_counter()
+                if stream_error:
+                    raise GatewayError("http_error", stream_error, status=response.status_code,
+                                       detail=stream_error)
+                if not done and finish is None:
+                    raise GatewayError("truncated_stream", status=response.status_code,
+                                       detail="stream ended before completion")
                 if not "".join(reply):
                     raise GatewayError("empty_reply")
                 return Completion("".join(reply), ended-started, first, reasoning_first,

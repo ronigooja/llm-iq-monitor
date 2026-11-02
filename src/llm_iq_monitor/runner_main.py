@@ -37,6 +37,10 @@ class DBAdapter:
     def set_last_trigger(self, model, tick):
         self.conn.execute("UPDATE models SET last_trigger_at=? WHERE id=?", (tick, model))
 
+    def run_status(self, run_id):
+        row = self.conn.execute("SELECT status FROM runs WHERE id=?", (run_id,)).fetchone()
+        return row[0] if row else None
+
     def __getattr__(self, name):
         function = getattr(db_module, name)
         def call(*args, **kwargs):
