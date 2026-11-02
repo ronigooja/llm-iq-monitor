@@ -25,11 +25,12 @@ async def client(monitor_db):
 async def test_canned_queries_and_exposure(client):
     expected = {
         "ranking": {"rank", "model", "effort", "run_id", "finished_at", "dataset_version", "status", "availability", "score", "quality", "latency_p50", "latency_p95", "ttft_p50", "time_total", "n", "n_err", "cost_usd", "cost_per_correct"},
+        "best": {"dim", "use_when", "model", "effort"},
         "series": {"t", "run_id", "dataset_version", "score", "quality", "latency_p50", "latency_p95", "ttft_p50", "time_total", "availability", "cost_per_correct"},
         "models": {"model", "effort", "active", "dims", "last_finished_at", "last_status"},
         "health": {"last_finished_at", "running_runs", "prices_fetched_at", "dataset_version"},
     }
-    params = {"ranking": {"dim": "math"}, "series": {"model": "alpha", "effort": "medium", "dim": "math"}, "models": {}, "health": {}}
+    params = {"ranking": {"dim": "math"}, "best": {}, "series": {"model": "alpha", "effort": "medium", "dim": "math"}, "models": {}, "health": {}}
     for name, columns in expected.items():
         response = await client.get(f"/monitor/{name}.json", params={**params[name], "_shape": "array"})
         assert response.status_code == 200, response.text

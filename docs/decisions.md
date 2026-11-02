@@ -28,6 +28,7 @@
 | Code sandbox | One-shot Docker containers; the Docker-daemon risk is accepted ([deployment.md](deployment.md#code-sandbox)) |
 | Admin console | Web console at `/admin/` replaced the interactive CLI menu (poor multi-select, noisy errors); CLI keeps `config show/get/set/set-key`. Public, admin token, lockout ([deployment.md](deployment.md#admin-console)) |
 | API | Datasette; no hand-built API. Ranking per capability with score, latency and cost ([api.md](api.md)) |
+| Best router query | Public `best` canned query competes all model × effort candidates per dimension: score tolerance, then price tolerance, then latency/model/effort tie-break; it always returns six display-ordered rows and uses null `model`/`effort` when no candidate remains. Output is `dim`, `use_when`, `model`, `effort` ([api.md](api.md#router-usage)) |
 | Website | One page, two tabs: Scores (model cards in alphabetical order, one chart each, buttons for capability and effort) and Compare (capability cards, horizontal bar ranking) ([web.md](web.md)) |
 | Cost | Cost per correct answer, per capability, as text next to score and latency; no cost ranking. Prices from models.dev, refreshed daily. No alias mapping: models without a price cannot be enabled ([cost.md](cost.md)) |
 | Public output | Derived costs only; no unit prices. No attribution or disclaimer text on the site |
