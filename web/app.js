@@ -117,7 +117,7 @@
       series: [
         {},
         { label: 'Score', scale: 'score', stroke: accent, width: 2, points: { show: rows.length < 60, size: 6, fill: accent } },
-        { label: 'Latency s', scale: 'latency', stroke: muted, width: 2, dash: [6, 4], points: { show: rows.length < 60, size: 5, fill: muted } },
+        { label: 'Time to solve (s)', scale: 'latency', stroke: muted, width: 2, dash: [6, 4], points: { show: rows.length < 60, size: 5, fill: muted } },
       ],
       axes: [
         { stroke: muted, grid: { stroke: line, width: 1 }, ticks: { stroke: line } },
@@ -142,7 +142,7 @@
   async function loadCompare() {
     const root = document.querySelector('#compare');
     root.dataset.loaded = '1';
-    root.innerHTML = DIMS.map(d => `<article class="card compare-card"><h2>${esc(d)}</h2><div class="ranking" id="rank-${d}">Loading…</div></article>`).join('');
+    root.innerHTML = '<p class="muted legend">Bar = score (0–100). Dot = time to solve: request start to end of reply, thinking included, network round trip removed; dot position is relative to the slowest row of the card. Text = score · time · cost per correct answer.</p>' + DIMS.map(d => `<article class="card compare-card"><h2>${esc(d)}</h2><div class="ranking" id="rank-${d}">Loading…</div></article>`).join('');
     await Promise.all(DIMS.map(async d => {
       const box = root.querySelector(`#rank-${d}`);
       try {

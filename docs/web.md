@@ -9,6 +9,7 @@ One static page served by Datasette (`--static` for assets, a template override 
 - JavaScript is required; there is no static fallback.
 - Line charts: uPlot, vendored in `web/vendor/` (no CDN). Bar rankings: plain HTML/CSS.
 - No attribution or disclaimer text.
+- Latency is shown as "time to solve" (request start to end of reply, thinking included, network round trip removed), not as network delay. The Compare tab carries a one-line legend.
 - Capabilities are the six dimensions ([benchmark.md](benchmark.md#dimensions)). There is no overall score.
 
 ## Cache
