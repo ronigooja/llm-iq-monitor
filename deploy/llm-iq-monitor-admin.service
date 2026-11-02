@@ -1,0 +1,22 @@
+[Unit]
+Description=LLM IQ Monitor administration service
+After=network-online.target
+
+[Service]
+Type=simple
+User=llm-iq-monitor
+Group=llm-iq-monitor
+WorkingDirectory=/opt/llm-iq-monitor
+Environment=LLM_IQ_DATA_DIR=/var/lib/llm-iq-monitor
+Environment=LLM_IQ_CONFIG_DIR=/etc/llm-iq-monitor
+EnvironmentFile=/etc/llm-iq-monitor/admin.env
+ExecStart=/opt/llm-iq-monitor/.venv/bin/python -m llm_iq_monitor.admin
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/etc/llm-iq-monitor /var/lib/llm-iq-monitor
+
+[Install]
+WantedBy=multi-user.target

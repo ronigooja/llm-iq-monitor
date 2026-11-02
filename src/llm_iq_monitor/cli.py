@@ -54,11 +54,11 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     if args.command == "config":
-        settings = load_settings()
         if args.action is None:
-            from .menu import main_menu
-            main_menu()
-        elif args.action == "show":
+            config.print_help()
+            return
+        settings = load_settings()
+        if args.action == "show":
             print(json.dumps(settings.model_dump(mode="json", exclude={"gateway": {"api_key"}}, exclude_none=True), indent=2))
         elif args.action == "get":
             if not args.key:
