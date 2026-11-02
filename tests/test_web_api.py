@@ -31,7 +31,7 @@ async def client(monitor_db):
 async def test_api_page_is_public_reference(client):
     response = await client.get("/api")
     assert response.status_code == 200, response.text
-    for query in ("ranking", "series", "models", "dimensions", "ui_samples", "health"):
+    for query in ("ranking", "best", "series", "models", "dimensions", "ui_samples", "health"):
         assert f"<code>{query}</code>" in response.text
     assert "/monitor/rate.json" not in response.text
     assert "/monitor/whoami.json" not in response.text
@@ -44,6 +44,13 @@ async def test_api_page_is_public_reference(client):
     assert "cors" not in response.text.lower()
     assert "datasette" not in response.text.lower()
     assert "exposure" not in response.text.lower()
+
+
+@pytest.mark.asyncio
+async def test_best_is_first_query_card(client):
+    html = (await client.get("/api")).text
+    queries = re.findall(r'<article class="api-query">.*?<h4><code>([^<]+)</code>', html, re.S)
+    assert queries[0] == "best"
 
 
 def test_api_template_keys_are_registered_in_both_languages():
@@ -60,7 +67,7 @@ def test_api_template_keys_are_registered_in_both_languages():
 async def test_api_try_urls_are_existing_queries(client):
     html = (await client.get("/api")).text
     urls = [unescape(url) for url in re.findall(r'data-api-url="([^"]+)"', html)]
-    assert len(urls) == 6
+    assert len(urls) == 7
     for url in urls:
         response = await client.get(url)
         assert response.status_code == 200, (url, response.text)

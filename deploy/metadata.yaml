@@ -68,6 +68,119 @@ databases:
            ORDER BY CASE WHEN effective_score IS NULL THEN 1 ELSE 0 END,
                    score_rank, model, effort
         params: [dim, effort]
+      best:
+        allow: true
+        sql: |
+          WITH RECURSIVE
+          input AS (
+            SELECT
+              CASE
+                WHEN trim(COALESCE(:score_tolerance, '')) <> ''
+                 AND trim(:score_tolerance) NOT GLOB '*[^0-9.]*'
+                 AND trim(:score_tolerance) GLOB '*[0-9]*'
+                 AND length(trim(:score_tolerance)) - length(replace(trim(:score_tolerance), '.', '')) <= 1
+                THEN CAST(trim(:score_tolerance) AS REAL)
+                ELSE 0.0
+              END AS score_tolerance,
+              CASE
+                WHEN trim(COALESCE(:price_tolerance, '')) <> ''
+                 AND trim(:price_tolerance) NOT GLOB '*[^0-9.]*'
+                 AND trim(:price_tolerance) GLOB '*[0-9]*'
+                 AND length(trim(:price_tolerance)) - length(replace(trim(:price_tolerance), '.', '')) <= 1
+                THEN CAST(trim(:price_tolerance) AS REAL)
+                ELSE 30.0
+              END AS price_tolerance,
+              COALESCE(:exclude, '') AS exclude_text
+          ), exclude_parts(keyword, rest) AS (
+            SELECT trim(substr(exclude_text, 1, instr(exclude_text || ',', ',') - 1)),
+                   substr(exclude_text || ',', instr(exclude_text || ',', ',') + 1)
+            FROM input
+            UNION ALL
+            SELECT trim(substr(rest, 1, instr(rest, ',') - 1)), substr(rest, instr(rest, ',') + 1)
+            FROM exclude_parts
+            WHERE rest <> ''
+          ),
+          dimensions AS (
+            SELECT 'reasoning' AS dim, 'Reasoning' AS name, 'Multi-step reasoning, avoiding common-sense traps, reading tables and figures, not making things up' AS use_when
+            UNION ALL SELECT 'code', 'Code', 'Writing a function, reading code, fixing a bug'
+            UNION ALL SELECT 'instruction', 'Instruction following', 'Following a strict output format, extracting fields into JSON'
+            UNION ALL SELECT 'write_zh', 'Writing · 中文', 'Chinese marketing copy'
+            UNION ALL SELECT 'write_en', 'Writing · English', 'English marketing copy'
+            UNION ALL SELECT 'ui', 'Drawing (SVG)', 'Drawing and visual layout, shown as SVG'
+          ), latest AS (
+            SELECT r.id AS run_id, r.model, r.effort, r.finished_at,
+                   r.dataset_version, r.status,
+                   d.dim, d.score, d.quality, d.latency_p50, d.cost_per_correct,
+                   d.availability,
+                   ROW_NUMBER() OVER (
+                     PARTITION BY r.model, r.effort, d.dim
+                     ORDER BY r.finished_at DESC, r.id DESC
+                   ) AS rn
+            FROM runs AS r JOIN run_dims AS d ON d.run_id = r.id
+            CROSS JOIN input
+            WHERE r.status NOT IN ('unsupported', 'aborted', 'running')
+              AND r.finished_at IS NOT NULL
+              AND d.dim IN (SELECT dim FROM dimensions)
+              AND r.dataset_version = (SELECT dataset_version FROM runs ORDER BY started_at DESC, id DESC LIMIT 1)
+          ), latest_ui AS (
+            SELECT r.model, r.effort, u.prompt_key, u.stars,
+                   ROW_NUMBER() OVER (
+                     PARTITION BY r.model, r.effort, u.prompt_key
+                     ORDER BY u.created_at DESC, u.id DESC
+                   ) AS sample_rn
+            FROM ui_samples u JOIN runs r ON r.id = u.run_id
+            WHERE u.valid = 1 AND u.stars IS NOT NULL
+              AND r.dataset_version = (SELECT dataset_version FROM runs ORDER BY started_at DESC, id DESC LIMIT 1)
+          ), ui_scores AS (
+            SELECT model, effort, AVG(stars) * 10 AS score
+            FROM latest_ui WHERE sample_rn = 1
+            GROUP BY model, effort
+          ), candidates AS (
+            SELECT l.run_id, l.model, l.effort, l.finished_at, l.dataset_version,
+                   l.dim, l.quality, l.latency_p50, l.cost_per_correct, l.availability,
+                   CASE WHEN l.dim = 'ui' THEN us.score ELSE l.score END AS score
+            FROM latest l LEFT JOIN ui_scores us ON us.model = l.model AND us.effort = l.effort
+            WHERE l.rn = 1
+          ), filtered AS (
+            SELECT c.*
+            FROM candidates c
+            WHERE c.score IS NOT NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM exclude_parts e
+                WHERE e.keyword <> '' AND instr(lower(c.model), lower(e.keyword)) > 0
+              )
+          ), score_limit AS (
+            SELECT f.*, MAX(f.score) OVER (PARTITION BY f.dim) AS max_score,
+                   input.score_tolerance, input.price_tolerance
+            FROM filtered f CROSS JOIN input
+          ), score_kept AS (
+            SELECT * FROM score_limit
+            WHERE score >= max_score - score_tolerance
+          ), price_limits AS (
+            SELECT s.*, MIN(s.cost_per_correct) OVER (PARTITION BY s.dim) AS min_price,
+                   MAX(CASE WHEN s.cost_per_correct IS NOT NULL THEN 1 ELSE 0 END)
+                     OVER (PARTITION BY s.dim) AS has_price
+            FROM score_kept s
+          ), price_kept AS (
+            SELECT * FROM price_limits
+            WHERE has_price = 0
+               OR (cost_per_correct IS NOT NULL
+                   AND cost_per_correct <= min_price * (1 + price_tolerance / 100.0))
+          ), chosen AS (
+            SELECT p.*, ROW_NUMBER() OVER (
+              PARTITION BY p.dim
+              ORDER BY CASE WHEN p.latency_p50 IS NULL THEN 1 ELSE 0 END,
+                       p.latency_p50, p.model, p.effort
+            ) AS choice_rn
+            FROM price_kept p
+          )
+          SELECT d.dim, d.use_when, c.model, c.effort
+          FROM dimensions d LEFT JOIN chosen c ON c.dim = d.dim AND c.choice_rn = 1
+          ORDER BY CASE d.dim
+            WHEN 'reasoning' THEN 1 WHEN 'code' THEN 2 WHEN 'instruction' THEN 3
+            WHEN 'write_zh' THEN 4 WHEN 'write_en' THEN 5 WHEN 'ui' THEN 6
+          END
+        params: [score_tolerance, price_tolerance, exclude]
       series:
         allow: true
         sql: |
