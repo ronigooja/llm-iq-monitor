@@ -115,11 +115,11 @@ async def _body_json(request: Request) -> tuple[dict[str, Any] | None, Response 
 
 
 def _auth_error(request: Request, state: AdminState) -> Response | None:
+    if not _authenticated(request, state):
+        return _json({"error": "authentication required"}, 401)
     csrf = _csrf(request)
     if csrf is not None:
         return csrf
-    if not _authenticated(request, state):
-        return _json({"error": "authentication required"}, 401)
     return None
 
 
@@ -188,9 +188,6 @@ async def static_file(request: Request) -> Response:
 
 async def login(request: Request) -> Response:
     state: AdminState = request.app.state.admin
-    csrf = _csrf(request)
-    if csrf is not None:
-        return csrf
     data, error = await _body_json(request)
     if error is not None:
         return error
