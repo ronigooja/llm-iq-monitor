@@ -39,6 +39,13 @@
 | Excluded tests | Seahorse-emoji questions. The SVG/pelican test is no longer excluded: it is the `ui` dimension with variants, rated by a person |
 | Connectivity check | Not needed before building the client |
 
+## Known limits (to revisit with real data)
+
+| Item | State |
+|---|---|
+| Dataset difficulty | v2 was probed on 2026-11-02 with four models at `low`: `reasoning` and `code` were mostly at full marks (little discrimination), `instruction` spread from 57% to 86%. The user chose to deploy and tune the questions from real data later |
+| Capacity | The gateway rejects bursts: `run.parallel_models` is 1 |
+
 ## Decided by the agent from research (change on request)
 
 | Decision | Basis |
