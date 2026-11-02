@@ -9,7 +9,7 @@
 | No overall score | Only per-dimension scores exist |
 | Gateway | `ai.nodemgr.uk` is CLIProxyAPI. Base URL `https://ai.nodemgr.uk/v1`, models from `https://ai.nodemgr.uk/v1/models` |
 | Scheduling | One global heartbeat cron (default hourly); each model has its own interval, default 6 h, shared by its efforts ([scheduling.md](scheduling.md)) |
-| Concurrency | Settable in the menu: models run at the same time, default 3 |
+| Concurrency | Settable in the admin console: models run at the same time, default 3 |
 | Per-model settings | Enabled (default off), interval, dimensions (multi), efforts (multi). No A/B tiers ([config.md](config.md#per-model-settings)) |
 | Efforts | `low`, `medium`, `high` only; no `default`. A newly enabled model starts with `medium`. Each effort is its own target |
 | Question seed | The UTC date |
@@ -22,11 +22,11 @@
 | Writing dimensions | `write_zh` and `write_en`, 6 questions each, scored separately. Rule checks give `score`; a judge model gives a separate `quality` ([benchmark.md](benchmark.md#writing-and-judge)) |
 | Self-judging | Allowed: a model that is the judge still gets a `quality` ([benchmark.md](benchmark.md#writing-and-judge)) |
 | Dimension selection | Global default and per model, multi-select, all checked by default ([config.md](config.md#per-model-settings)) |
-| Judge | Selectable in the config menu, default `claude-opus-5-5`; effort default `low`. Judge cost and time recorded separately ([config.md](config.md#global-settings)) |
+| Judge | Selectable in the admin console, default `claude-opus-5-5`; effort default `low`. Judge cost and time recorded separately ([config.md](config.md#global-settings)) |
 | Network round trip | Measured per run by TCP connect to the gateway, fallback 30 ms (the user measured ping at about 30 ms), subtracted once per request ([metrics.md](metrics.md#network-round-trip)) |
 | Latency vantage point | The monitor host only |
 | Code sandbox | One-shot Docker containers; the Docker-daemon risk is accepted ([deployment.md](deployment.md#code-sandbox)) |
-| Config menu | Interactive CLI menu for the main settings ([config.md](config.md#interactive-menu)) |
+| Admin console | Web console at `/admin/` replaced the interactive CLI menu (poor multi-select, noisy errors); CLI keeps `config show/get/set/set-key`. Public, admin token, lockout ([deployment.md](deployment.md#admin-console)) |
 | API | Datasette; no hand-built API. Ranking per capability with score, latency and cost ([api.md](api.md)) |
 | Website | One page, two tabs: Scores (model cards in alphabetical order, one chart each, buttons for capability and effort) and Compare (capability cards, horizontal bar ranking) ([web.md](web.md)) |
 | Cost | Cost per correct answer, per capability, as text next to score and latency; no cost ranking. Prices from models.dev, refreshed daily. No alias mapping: models without a price cannot be enabled ([cost.md](cost.md)) |

@@ -19,7 +19,7 @@ Read only what the task needs.
 | [docs/data-model.md](docs/data-model.md) | Touching SQLite tables or retention |
 | [docs/api.md](docs/api.md) | Touching the public API |
 | [docs/web.md](docs/web.md) | Touching the website |
-| [docs/config.md](docs/config.md) | Touching any setting, its default, or the interactive CLI menu |
+| [docs/config.md](docs/config.md) | Touching any setting, its default, or the admin console |
 | [docs/deployment.md](docs/deployment.md) | Touching the server, nginx, systemd, sandbox, secrets |
 | [docs/decisions.md](docs/decisions.md) | Checking what is decided vs open |
 

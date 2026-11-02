@@ -13,7 +13,7 @@ Cost is an auxiliary number shown next to score and latency. It is never ranked 
 
 - A gateway model has a price when its model id exactly equals a model id under the `anthropic` or `openai` provider of the price list (checked in that order).
 - Fields used: `cost.input` and `cost.output`, USD per million tokens. The context-tier prices are ignored: questions are short.
-- No alias mapping. A model without a price cannot be enabled and is never run; in the menu it is listed as "no price" ([config.md](config.md#interactive-menu)).
+- No alias mapping. A model without a price cannot be enabled and is never run; the admin console lists it as "no price" ([config.md](config.md#admin-console)).
 - Observed on 2026-11-02: 22 of the gateway's 27 models matched. The five that did not were older Claude models: `claude-3-5-haiku-20241022`, `claude-3-7-sonnet-20250219`, `claude-opus-4-20250514`, `claude-opus-4-1-20250805`, `claude-sonnet-4-20250514`.
 - If an enabled model loses its price later, its cycles are skipped and logged; its history stays.
 

@@ -1,13 +1,13 @@
 # Configuration
 
-Single source for all settings, their defaults and the interactive CLI menu. Other docs link here instead of repeating values.
+Single source for all settings, their defaults and the admin console. Other docs link here instead of repeating values.
 
 ## Storage and precedence
 
 | What | Where | Notes |
 |---|---|---|
-| Settings | `$LLM_IQ_CONFIG_DIR/settings.toml` | No secrets. Written by the menu |
-| Gateway key | `$LLM_IQ_CONFIG_DIR/secrets.env` | Mode 600, owned by the service user. Written by the menu only |
+| Settings | `$LLM_IQ_CONFIG_DIR/settings.toml` | No secrets. Written by the admin console or `config set` |
+| Gateway key | `$LLM_IQ_CONFIG_DIR/secrets.env` | Mode 600, owned by the service user. Written by the admin console or `config set-key` only |
 | Directories | env `LLM_IQ_CONFIG_DIR`, `LLM_IQ_DATA_DIR` | Defaults in [deployment.md](deployment.md#environment) |
 
 Precedence, highest first: environment variable `GATEWAY_API_KEY` (key only) → files above → built-in defaults.
@@ -52,29 +52,24 @@ Validation on save:
 - Dimensions and efforts come from the allowed sets and are non-empty for an enabled model.
 - A model without a price cannot be enabled ([cost.md](cost.md#price-lookup)). The judge model must have a price too, and is warned about when absent from the model list.
 - Model ids absent from the current model list are warned about, not rejected.
-- An interval shorter than the heartbeat period is accepted and behaves as one heartbeat period ([scheduling.md](scheduling.md#due-check)); the menu warns about it.
+- An interval shorter than the heartbeat period is accepted and behaves as one heartbeat period ([scheduling.md](scheduling.md#due-check)); the console warns about it.
 
-## Interactive menu
+## Admin console
 
-Command: `llm-iq-monitor config`. Built with questionary (checkbox, select, password, text prompts), so multi-select is native and it works over SSH. Runs against the config directory of the machine it is started on.
+The web console at `/admin/` ([web.md](web.md#page-admin-admin), [deployment.md](deployment.md#admin-console)) edits all settings. It validates with the same `Settings` model as the CLI and writes `settings.toml` and `secrets.env`; the Runner reloads the file by itself ([Applying changes](#applying-changes)).
 
-| # | Section | Actions |
-|---|---|---|
-| 1 | Gateway | Edit base URL and models URL; set the key (hidden input, never echoed or printed); test connection |
-| 2 | Models | Fetch the list and show each model with its state, interval, dimensions and efforts. Models without a price are shown as "no price" and cannot be checked. Check models to enable them (a newly enabled model gets the defaults); pick one model to edit its interval, dimensions and efforts; apply one choice to several checked models at once |
-| 3 | Defaults and heartbeat | `schedule.heartbeat_cron` (shows the next five ticks), `models.default_*`, `prices.*` |
-| 4 | Run limits | Parallel models, timeout, max tokens, round-trip fallback, reply retention |
-| 5 | Judge | Pick the judge model from the models that have a price (current choice marked); pick the judge effort. Warns that judge calls add cost |
-| 6 | Review | Show all settings with the key masked, and the estimated runs and tokens per day ([scheduling.md](scheduling.md#token-budget)) |
-| 7 | Quit | Save and exit, or discard |
+| Section | Contents |
+|---|---|
+| Gateway | Base URL, models URL, key (write-only, shown only as set / not set), test connection (HTTP status, model count; never the key) |
+| Models | One row per known model: state, price, interval, dimensions, efforts. Models without a price show "no price" and cannot be enabled. Multi-select with bulk apply; refresh the list from the gateway. A newly enabled model gets the defaults |
+| Defaults and heartbeat | `schedule.heartbeat_cron` (next five ticks), `models.default_*`, `prices.*` |
+| Run limits | Parallel models, timeout, max tokens, round-trip fallback, reply retention |
+| Judge | Judge model (only models with a price) and effort; judge calls add cost |
+| Overview | Estimated runs and tokens per day ([scheduling.md](scheduling.md#token-budget)) |
 
-"Test connection" calls the models URL and reports HTTP status, model count and elapsed time. It never prints the key.
+The model list does not say which efforts a model accepts, so all three are offered for every model. Unsupported ones are recorded at run time ([metrics.md](metrics.md#effort-support)). Validation errors appear next to the field.
 
-The model list does not say which efforts a model accepts, so the menu offers all three for every model. Unsupported ones are recorded at run time ([metrics.md](metrics.md#effort-support)).
-
-First start with no `settings.toml` opens the menu at section 1.
-
-Scripting equivalents, same validation: `config show`, `config get KEY`, `config set KEY VALUE`. The key can only be set through the menu's hidden prompt or by piping into `config set-key` on stdin.
+CLI for scripts and emergencies, same validation: `config show`, `config get KEY`, `config set KEY VALUE`, and `config set-key` (key on stdin). `config` alone prints usage.
 
 ## Applying changes
 

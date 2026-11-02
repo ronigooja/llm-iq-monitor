@@ -56,4 +56,4 @@ runs per day = sum over enabled models of (24 / interval_h × selected efforts)
 
 Example: 10 models, 6 h interval, 3 efforts each = 120 runs per day, about 1.4M input and 3M–12M output tokens per day. 27 models were listed by the gateway on 2026-11-02; 22 of them have a price ([cost.md](cost.md#price-lookup)).
 
-The menu shows this estimate when intervals, models, dimensions or efforts change ([config.md](config.md#interactive-menu)). Monetary cost depends on how the gateway bills and is not estimated here.
+The admin console shows this estimate ([config.md](config.md#admin-console)). Monetary cost depends on how the gateway bills and is not estimated here.

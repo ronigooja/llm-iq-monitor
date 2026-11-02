@@ -1,6 +1,6 @@
 # Web
 
-Three pages served by Datasette (`--static` for assets, templates under `deploy/templates/pages/`). Real paths, no `#` routing: `/` (Scores), `/compare` (Compare), `/ui` (UI samples), `/api` (API reference). Data comes only from the public queries ([api.md](api.md)). No model detail page. No build step.
+Three public pages served by Datasette (`--static` for assets, templates under `deploy/templates/pages/`). Real paths, no `#` routing: `/` (Scores), `/compare` (Compare), `/ui` (UI samples), `/api` (API reference). Data comes only from the public queries ([api.md](api.md)). No model detail page. No build step.
 
 ## Style rules
 
@@ -69,3 +69,7 @@ Question text, answers, replies, per-question results, unit prices ([api.md](api
 ## Page: API (`/api`)
 
 Public reference built from [api.md](api.md): every query with purpose, parameters, columns and a live example link with a "Try it" button (first three rows, rendered as text). Quick start, field semantics and exposure rules are static text; the dimensions table is loaded from the `dimensions` query. `rate` and `whoami` are listed as owner-only. Same CSP as the UI page.
+
+## Page: Admin (`/admin/`)
+
+Served by the admin service, not Datasette ([deployment.md](deployment.md#admin-console)). One page, `noindex`, bilingual with the site's language switch; effort labels untranslated. Login form (admin token) until a session exists. Sections and fields are in [config.md](config.md#admin-console). A sticky bar shows unsaved changes with Save and Discard; 422 errors appear inline at the field (`data-field` is the dotted settings path). Assets `web/admin.{html,js,css}` are served from a fixed whitelist under `/admin/static/`; strict CSP, no inline script or style.

@@ -44,7 +44,7 @@ Versions marked verified were checked on PyPI or npm on 2026-11-02; pin the othe
 | Package | Use | Version |
 |---|---|---|
 | datasette | API, pages and static hosting | 0.65.5 (verified, Python ≥3.10) |
-| questionary | Config menu | 2.1.1 (verified) |
+| Starlette, uvicorn | Admin console | pinned in `pyproject.toml` |
 | APScheduler | Cron jobs | 3.11.3 (verified). Not 4.x: still alpha |
 | httpx | Streaming client, price fetch | 0.28.x |
 | datasette-auth-tokens | Bearer-token auth for the `rate` query | 0.3 (verified on PyPI and locally, Apache-2.0) |
@@ -73,7 +73,8 @@ docs/
 pyproject.toml, uv.lock
 src/llm_iq_monitor/
   settings.py      models for settings.toml, merge, reload
-  menu.py          questionary config menu
+  admin.py         admin console (Starlette)
+  admin_logic.py   budget, ticks, bulk apply, gateway checks
   scheduler.py     jobs, heartbeat
   dispatcher.py    due check, queue, workers
   discovery.py

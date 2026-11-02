@@ -29,11 +29,12 @@ DNS check note: the developer machine's resolver returns a fake-IP (`198.18.x.x`
 
 ## Services
 
-Two systemd units, both running as a dedicated unprivileged user, `Restart=on-failure`, logs to journald:
+Three systemd units, all running as a dedicated unprivileged user, `Restart=on-failure`, logs to journald:
 
 | Unit | Runs |
 |---|---|
 | `llm-iq-monitor.service` | Runner ([architecture.md](architecture.md#processes)) |
+| `llm-iq-monitor-admin.service` | Admin console on `127.0.0.1:2840`, public path `/admin/` ([below](#admin-console)) |
 | `llm-iq-monitor-web.service` | `datasette serve` (plus the `datasette-auth-tokens` plugin) on `127.0.0.1:2839` with `deploy/metadata.yaml`, `--cors`, `--static`, `--template-dir`, and the settings `default_allow_sql off`, `allow_download off`, `default_cache_ttl 60`, `max_returned_rows 2000` |
 
 Install: code and virtualenv in `/opt/llm-iq-monitor`; `uv lock` / `uv sync --frozen` build the virtualenv; systemd runs `.venv/bin/python` directly (no `uv run`, no `pipx`, no Docker Compose). Release: pull the repo on the host, `uv sync --frozen`, restart both units. Before bumping `dataset_version`, dry-run it with the CLI ([benchmark.md](benchmark.md#dataset-versioning)).
@@ -57,12 +58,12 @@ cd /opt/llm-iq-monitor || exit 1
 exec runuser -u llm-iq-monitor -- env LLM_IQ_DATA_DIR=/var/lib/llm-iq-monitor LLM_IQ_CONFIG_DIR=/etc/llm-iq-monitor .venv/bin/llm-iq-monitor "$@"
 ```
 
-Then `llm-iq-monitor config`, `llm-iq-monitor config set KEY VALUE`, `llm-iq-monitor manual MODEL` and `llm-iq-monitor migrate` work from any directory.
+Then `llm-iq-monitor config show`, `llm-iq-monitor config set KEY VALUE`, `llm-iq-monitor manual MODEL` and `llm-iq-monitor migrate` work from any directory.
 
 ## Secrets
 
-- The key is entered through the config menu ([config.md](config.md#interactive-menu)) on the host and stored in `$LLM_IQ_CONFIG_DIR/secrets.env`, mode 600, owned by the service user; the Runner unit reads it through `EnvironmentFile`. The Web unit does not read it.
-- The agent never handles the key; the user types it into the menu.
+- The key is entered in the admin console or piped to `config set-key` on the host, and stored in `$LLM_IQ_CONFIG_DIR/secrets.env`, mode 600, owned by the service user; the Runner unit reads it through `EnvironmentFile`. The Web unit does not read it.
+- The agent never handles the key; the user enters it in the console.
 - The repo contains no key and no `secrets.env`.
 
 ## Rating key
@@ -81,3 +82,10 @@ Model-written code is untrusted and must never run in the Runner process. Defaul
 - 10 s wall limit per question, enforced by the Runner, which also removes the container. A timeout counts as a failed test, not as an error.
 - Pass condition: all hidden tests pass ([benchmark.md](benchmark.md#scoring)).
 - Risk accepted by the user: the Runner's user must reach the Docker daemon, which is root-equivalent on the host. Mitigations: the Runner uses a dedicated non-root user, accepts no external requests and handles model replies only as text; the public Datasette process never touches Docker.
+
+## Admin console
+
+- Unit `llm-iq-monitor-admin.service` (`deploy/llm-iq-monitor-admin.service`), the only process besides the CLI that writes `settings.toml` and `secrets.env`. The Runner reloads settings by itself.
+- Public through nginx: forward `location /admin/` to `127.0.0.1:2840` without stripping the prefix (`deploy/nginx-admin.conf.example`). nginx is managed by the user.
+- Admin token: `ADMIN_TOKEN` in `/etc/llm-iq-monitor/admin.env` (mode 600, service user), at least 24 characters; the service refuses to start without it. The user reads it with `cat`; the agent never reads it.
+- Session cookie `HttpOnly; Secure; SameSite=Strict; Path=/admin`, 12 h, kept in memory (a restart logs everyone out). Every POST/PUT needs header `X-Admin: 1`. 5 failed logins per client IP lock it for 15 minutes. Responses are `no-store`; the gateway key never appears in a response or log.
