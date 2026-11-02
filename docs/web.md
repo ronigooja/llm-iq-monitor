@@ -24,6 +24,10 @@ All pages share one header (title, page links **Scores**, **Compare**, **UI**, *
 
 English and Simplified Chinese, switched by the `English / 中文` buttons in the header. The first visit follows `navigator.language` (`zh*` gives Chinese); the choice is kept in `localStorage` key `lang`. `web/i18n.js` is loaded before `app.js` and exposes `window.i18n` (`lang`, `setLang`, `t`, `add`, `apply`); static text carries `data-i18n="key"`, page scripts register their strings with `i18n.add({en, zh})` and re-render on the `langchange` event. Model ids, numbers, units, effort keys and API field names are never translated. Chinese dimension names and "use it when" texts are keyed `dim.<dim>.name` / `dim.<dim>.use` and replace the `dimensions` query text in Chinese mode.
 
+## Title and description
+
+Each page has a static bilingual `<title>`, `<meta name="description">` and `og:*` tags (Chinese and English in one string), because crawlers and link previews do not run JavaScript. In the browser, `i18n.js` replaces the title and description with one language on load and on `langchange` (keys `meta.title`, `meta.description` per page). No interval or other changing setting is written in them.
+
 ## Dimension names
 
 Buttons and cards use the names from the `dimensions` query: the dimension key plus its "use it when" text as a tooltip. `write_zh` is shown as "Writing · 中文", `write_en` as "Writing · English", `ui` as "Drawing (SVG)".
