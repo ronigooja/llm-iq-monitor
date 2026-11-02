@@ -86,6 +86,6 @@ Model-written code is untrusted and must never run in the Runner process. Defaul
 ## Admin console
 
 - Unit `llm-iq-monitor-admin.service` (`deploy/llm-iq-monitor-admin.service`), the only process besides the CLI that writes `settings.toml` and `secrets.env`. The Runner reloads settings by itself.
-- Public through nginx: forward `location /admin/` to `127.0.0.1:2840` without stripping the prefix (`deploy/nginx-admin.conf.example`). nginx is managed by the user.
+- Public through nginx: forward `location /admin/` to `127.0.0.1:2840` without stripping the prefix (`deploy/nginx-admin.conf.example`), with `X-Forwarded-For` set from `$http_cf_connecting_ip` only: the lockout keys on it, and a client-supplied value would bypass it.
 - Admin token: `ADMIN_TOKEN` in `/etc/llm-iq-monitor/admin.env` (mode 600, service user), at least 24 characters; the service refuses to start without it. The user reads it with `cat`; the agent never reads it.
 - Session cookie `HttpOnly; Secure; SameSite=Strict; Path=/admin`, 12 h, kept in memory (a restart logs everyone out). Every POST/PUT needs header `X-Admin: 1`. 5 failed logins per client IP lock it for 15 minutes. Responses are `no-store`; the gateway key never appears in a response or log.

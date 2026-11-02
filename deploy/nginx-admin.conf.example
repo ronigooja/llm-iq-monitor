@@ -1,6 +1,11 @@
+# Add inside the HTTPS server block, before `location /`.
+# The admin service locks logins per client IP taken from X-Forwarded-For,
+# so pass only the address Cloudflare sets (clients cannot forge it).
 location /admin/ {
     proxy_pass http://127.0.0.1:2840;
+    proxy_http_version 1.1;
     proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-For $http_cf_connecting_ip;
     proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 60s;
 }
