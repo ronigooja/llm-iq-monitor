@@ -10,7 +10,7 @@ from typing import Any
 
 from .base import Question
 
-DATASET_VERSION = "v1"
+DATASET_VERSION = "v2"
 
 
 def _index_sum(values: list[int], index: int) -> int:
@@ -107,11 +107,13 @@ _SPECS = [
     ("second_largest_distinct", "solve(values) -> int | None: return the second-largest distinct value.", _second_distinct),
     ("balanced_brackets", "solve(text) -> bool: check (), [] and {} bracket nesting; ignore other characters.", _balanced),
     ("run_length_encoding", "solve(text) -> list: return [[character, count], ...] run-length encoding.", _rle),
-    ("anagram", "solve(left, right) -> bool: compare case-insensitively while ignoring spaces.", _anagram),
+    ("anagram", "solve(left, right) -> bool: check whether two strings are anagrams of each other, ignoring case and spaces.", _anagram),
     ("flatten", "solve(value) -> list: recursively flatten nested lists.", _flatten),
     ("prime_count", "solve(numbers) -> int: count prime numbers (values below 2 are not prime).", _prime_count),
     ("rotate", "solve(values, amount) -> list: rotate right by amount, including negative amounts.", _rotate),
     ("merge_intervals", "solve(intervals) -> list: sort and merge overlapping or touching intervals.", _merge),
+    ("fix_index", "solve(values) -> int: return the index of the first maximum value, or -1 for an empty list. Fix the supplied off-by-one bug examples.", lambda values: max(range(len(values)), key=lambda i: values[i]) if values else -1),
+    ("fix_ties", "solve(words) -> str: return the lexicographically smallest longest word, or '' for an empty list. Fix the supplied tie-breaking bug examples.", lambda words: min(words, key=lambda w: (-len(w), w)) if words else ""),
 ]
 
 
@@ -146,9 +148,15 @@ def _cases(index: int, rng: random.Random, reference: Any) -> list[dict[str, Any
     elif index == 8:
         cases = [([], 3), ([1], -4), ([1, 2, 3, 4], 1), ([1, 2, 3, 4], -1)]
         cases += [([rng.randint(-9, 9) for _ in range(rng.randint(0, 10))], rng.randint(-15, 15)) for _ in range(6)]
-    else:
+    elif index == 9:
         cases = [([],), ([[1, 2]],), ([[1, 3], [2, 4], [6, 8]],), ([[5, 7], [1, 2]],)]
         cases += [([[a, a + rng.randint(0, 4)] for a in sorted(rng.randint(0, 15) for _ in range(rng.randint(0, 8)))],) for _ in range(6)]
+    elif index == 10:
+        cases = [([],), ([3],), ([2, 9, 4],), ([-4, -1, -1],), ([7] * 100000,)]
+        cases += [([rng.randint(-20, 20) for _ in range(rng.randint(1, 20))],) for _ in range(5)]
+    else:
+        cases = [([],), (["zoo", "ant"],), (["long", "tiny", "wide"],), (["éclair", "apple"],)]
+        cases += [([rng.choice(["alpha", "bravo", "éclair", "delta"]) for _ in range(rng.randint(1, 8))],) for _ in range(6)]
     return [{"args": list(args), "expected": reference(*args)} for args in cases[:10]]
 
 
@@ -159,7 +167,10 @@ def generate(seed: str) -> list[Question]:
         digest = hashlib.sha256(f"{DATASET_VERSION}:{seed}:code:{index}".encode()).digest()
         rng = random.Random(int.from_bytes(digest, "big"))
         hidden = _cases(index, rng, reference)
-        prompt = f"Implement `{signature}`. Return only one Python code block defining `solve`; do not use input(), print(), imports, or external files."
+        examples = ""
+        if index == 10: examples = " Examples: solve([4, 2]) == 0; solve([]) == -1; solve([3, 9, 9]) == 1."
+        if index == 11: examples = " Examples: solve(['zoo', 'ant']) == 'ant'; solve([]) == ''."
+        prompt = f"Implement `{signature}`{examples} Return only one Python code block defining `solve`; do not use input(), print(), imports, or external files."
         questions.append(Question(f"code-{index + 1:02d}", "code", prompt, "code", None, {"tests": hidden, "name": name}))
     return questions
 

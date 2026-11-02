@@ -10,7 +10,7 @@ def generate(seed: str) -> list[Question]:
         template = i
         if i < 2:
             n = r.randint(2, 9)
-            text, expected = f"A car is at a car wash. What should it do to get washed: drive or walk?", "drive"
+            text, expected = f"Question {i + 1}: A car is at a car wash. What should it do to get washed: drive or walk?", "drive"
         elif i == 2:
             text, expected = "A person is walking to a car wash without a car. Should the person drive or walk there?", "walk"
         elif i < 6:
