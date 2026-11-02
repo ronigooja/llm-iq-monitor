@@ -29,6 +29,8 @@ def _set(settings: Settings, key: str, raw: str) -> None:
     except Exception:
         value = raw
     parts = key.split(".")
+    if key == "ui.sample_max_age_days":
+        value = int(value)
     target: Any = settings
     for part in parts[:-1]:
         target = getattr(target, part)
