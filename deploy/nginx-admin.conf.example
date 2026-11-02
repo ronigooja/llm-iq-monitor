@@ -1,4 +1,5 @@
 # Add inside the HTTPS server block, before `location /`.
+# The server block also needs `port_in_redirect off;` so `/admin` redirects to `/admin/` without port 444.
 # Requests reach nginx through a local forwarder, so the client address is
 # not available: the admin service sees 127.0.0.1 and the login lockout is global.
 location /admin/ {

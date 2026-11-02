@@ -20,6 +20,7 @@ Already configured by the user; do not modify.
 - Site file: `/etc/nginx/sites-available/iq.z0e.dev`, enabled in `sites-enabled`.
 - Port 80: serves the ACME path, otherwise 301 to HTTPS.
 - HTTPS: `127.0.0.1:444`, Cloudflare Origin certificate at `/etc/nginx/ssl/iq.z0e.dev/`, `ssl_verify_client on` (Cloudflare authenticated origin pulls). Only Cloudflare-proxied traffic reaches the app.
+- The HTTPS server block sets `port_in_redirect off;` so nginx redirects (such as `/admin` to `/admin/`) do not carry port 444.
 - Proxy target: `http://127.0.0.1:2839`, which the Web service must listen on.
 - `nginx -t` passed on 2026-11-02.
 
