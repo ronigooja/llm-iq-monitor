@@ -54,6 +54,13 @@
     });
     return next;
   }
+  function bulkValues(intervalRaw, dims, efforts) {
+    const interval = Number(intervalRaw);
+    if (String(intervalRaw).trim() === '' || !Number.isInteger(interval) || interval < 1) return { error: 'bulkInterval' };
+    if (!dims.length) return { error: 'bulkDims' };
+    if (!efforts.length) return { error: 'bulkEfforts' };
+    return { values: { interval_h: interval, dims, efforts } };
+  }
   function errorFields(errors) {
     return (errors || []).reduce((result, error) => {
       if (error && error.field) result[error.field] = error.message || '';
@@ -67,7 +74,7 @@
   function formatModelPrice(model) {
     return model.price_in == null || model.price_out == null ? '—' : `${formatPrice(model.price_in)} / ${formatPrice(model.price_out)}`;
   }
-  window.adminHelpers = { collectSettings, bulkApply, errorFields, formatPrice, formatModelPrice };
+  window.adminHelpers = { collectSettings, bulkApply, bulkValues, errorFields, formatPrice, formatModelPrice };
   if (typeof document.addEventListener !== 'function') return;
 
   function tr(key, vars) { return window.i18n.t(`admin.${key}`, vars); }
@@ -189,7 +196,17 @@
   function discard() { state = clone(original); renderSettings(); clearErrors(); setMessage('#save-message', tr('discarded')); }
   function testConnection() { setMessage('#connection-result', tr('testing')); jsonRequest('/admin/api/test', 'POST', {}).then(result => { setMessage('#connection-result', result.ok ? tr('connectionOk', { status: result.status, models: result.models }) : tr('connectionFailed', { message: result.error || tr('invalid') })); }).catch(error => setMessage('#connection-result', tr('connectionFailed', { message: error.message }))); }
   function refreshModels() { const button = $('#refresh-models'); button.disabled = true; button.textContent = tr('refreshing'); jsonRequest('/admin/api/models/refresh', 'POST', {}).then(next => { state = next; original = clone(next); renderSettings(); }).catch(error => { if (error.status === 401) showLogin(true); }).finally(() => { button.disabled = false; button.textContent = tr('refresh'); }); }
-  function applyBulk() { const ids = $$('.model-select:checked').map(input => input.value); const dims = selectedValues($('#bulk-dims')); const efforts = selectedValues($('#bulk-efforts')); state.settings = window.adminHelpers.bulkApply(state.settings, ids, { interval_h: $('#bulk-interval').value, dims, efforts }); renderModels(); markDirty(); }
+  function applyBulk() {
+    const ids = $$('.model-select:checked').map(input => input.value);
+    const checked = window.adminHelpers.bulkValues($('#bulk-interval').value, selectedValues($('#bulk-dims')), selectedValues($('#bulk-efforts')));
+    if (checked.error) { setMessage('#bulk-message', tr(checked.error + 'Invalid')); return; }
+    setMessage('#bulk-message', '');
+    state.settings = window.adminHelpers.bulkApply(window.adminHelpers.collectSettings(state.settings), ids, checked.values);
+    renderModels();
+    $$('.model-select').forEach(input => { input.checked = ids.includes(input.value); });
+    updateBulkBar();
+    markDirty();
+  }
   document.addEventListener('langchange', () => { if (state) renderSettings(); window.i18n.apply(); });
   $('#login-form').addEventListener('submit', login);
   $('#logout').addEventListener('click', logout);
