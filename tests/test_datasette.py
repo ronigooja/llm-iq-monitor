@@ -24,8 +24,8 @@ async def client(monitor_db):
 @pytest.mark.asyncio
 async def test_canned_queries_and_exposure(client):
     expected = {
-        "ranking": {"rank", "model", "effort", "run_id", "finished_at", "dataset_version", "status", "availability", "score", "latency_p50", "latency_p95", "ttft_p50", "time_total", "n", "n_err", "cost_usd", "cost_per_correct"},
-        "series": {"t", "run_id", "dataset_version", "score", "latency_p50", "latency_p95", "ttft_p50", "time_total", "availability", "cost_per_correct"},
+        "ranking": {"rank", "model", "effort", "run_id", "finished_at", "dataset_version", "status", "availability", "score", "quality", "latency_p50", "latency_p95", "ttft_p50", "time_total", "n", "n_err", "cost_usd", "cost_per_correct"},
+        "series": {"t", "run_id", "dataset_version", "score", "quality", "latency_p50", "latency_p95", "ttft_p50", "time_total", "availability", "cost_per_correct"},
         "models": {"model", "effort", "active", "dims", "last_finished_at", "last_status"},
         "health": {"last_finished_at", "running_runs", "prices_fetched_at"},
     }
@@ -37,3 +37,19 @@ async def test_canned_queries_and_exposure(client):
     assert (await client.get("/monitor.json")).status_code == 403
     assert (await client.get("/monitor/runs.json")).status_code == 403
     assert (await client.get("/monitor.db")).status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_quality_is_returned_but_does_not_change_ranking(client):
+    ranking = await client.get("/monitor/ranking.json", params={"dim": "write_zh", "_shape": "array"})
+    assert ranking.status_code == 200, ranking.text
+    rows = ranking.json()
+    assert [row["model"] for row in rows] == ["beta", "alpha"]
+    assert [row["quality"] for row in rows] == [60, 78]
+
+    series = await client.get("/monitor/series.json", params={"model": "alpha", "effort": "medium", "dim": "write_zh", "_shape": "array"})
+    assert series.status_code == 200, series.text
+    assert series.json()[0]["quality"] == 78
+
+    null_quality = await client.get("/monitor/series.json", params={"model": "alpha", "effort": "medium", "dim": "write_en", "_shape": "array"})
+    assert null_quality.json()[0]["quality"] is None
