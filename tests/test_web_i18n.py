@@ -24,6 +24,12 @@ def test_i18n_registry_is_symmetric_and_template_keys_exist():
     assert en == zh
     used = set().union(*(set(re.findall(r'data-i18n="([^"]+)"', p.read_text())) for p in TEMPLATES))
     assert used <= en
+    assert {"ui.subject.classic", "ui.subject.variant"} <= en
+    source = (ROOT / "web/i18n.js").read_text()
+    assert "'ui.subject.classic':'A pelican riding a bicycle'" in source
+    assert "'ui.subject.variant':'A penguin driving a tractor'" in source
+    assert "'ui.subject.classic':'鹈鹕骑自行车'" in source
+    assert "'ui.subject.variant':'企鹅开拖拉机'" in source
 
 
 def test_api_page_shared_keys_exist_in_the_registry():

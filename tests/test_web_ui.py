@@ -40,3 +40,13 @@ def test_ui_design_has_untranslated_efforts_and_history_copy():
     assert "'ui.noHistory': 'No history yet'" in script and "'ui.noHistory': '暂无历史'" in script
     assert "<details" not in script
     assert "seed" not in script
+
+
+def test_ui_sections_use_separate_kind_and_subject_i18n_elements():
+    script = (ROOT / "web/ui.js").read_text()
+    assert 'class="ui-section-heading"' in script
+    assert 'class="ui-kind"' in script
+    assert 'class="ui-subject"' in script
+    assert "tr(`ui.${section.promptKey}`)" in script
+    assert "tr(`ui.subject.${section.promptKey}`)" in script
+    assert "const subject =" not in script
