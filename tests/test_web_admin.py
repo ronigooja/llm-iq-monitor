@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).parents[1]
 HTML = (ROOT / "web/admin.html").read_text(encoding="utf-8")
 JS = (ROOT / "web/admin.js").read_text(encoding="utf-8")
+CSS = (ROOT / "web/admin.css").read_text(encoding="utf-8")
 I18N = (ROOT / "web/i18n.js").read_text(encoding="utf-8")
 
 
@@ -17,12 +18,12 @@ def registry_keys(language):
 
 def test_admin_html_uses_only_whitelisted_versioned_assets_and_no_inline_code():
     assert re.findall(r'<link[^>]+href="([^"]+)"', HTML) == [
-        "/admin/static/style.css?v=1",
-        "/admin/static/admin.css?v=1",
+        "/admin/static/style.css?v=2",
+        "/admin/static/admin.css?v=2",
     ]
     assert re.findall(r'<script[^>]+src="([^"]+)"', HTML) == [
-        "/admin/static/i18n.js?v=1",
-        "/admin/static/admin.js?v=1",
+        "/admin/static/i18n.js?v=2",
+        "/admin/static/admin.js?v=2",
     ]
     assert not re.search(r"<script(?![^>]+\bsrc=)[^>]*>", HTML, re.I)
     assert not re.search(r"\sstyle\s*=", HTML, re.I)
@@ -37,6 +38,13 @@ def test_admin_i18n_keys_are_symmetric_and_used_keys_exist():
     used.update(re.findall(r'data-i18n="(admin\.[^"]+)"', HTML))
     assert used <= en, used - en
     assert {key for key in en if key.startswith("admin.")} <= zh
+    assert "admin.heading" in en and "admin.bulkInterval" in en and "admin.showUnpriced" in en
+    assert 'data-i18n="admin.heading"' in HTML
+    assert 'data-i18n="nav.scores"' in HTML
+    assert 'id="show-unpriced"' in HTML
+    assert 'id="show-unpriced" type="checkbox"' in HTML
+    assert ".bulk-bar[hidden], [hidden]" in CSS
+    assert "white-space:nowrap" in CSS
 
 
 def test_admin_js_has_no_secret_storage_and_sets_admin_header_for_mutations():
@@ -55,11 +63,13 @@ def test_admin_js_passes_node_check():
 def test_admin_helpers_cover_dirty_bulk_and_error_mapping():
     script = f"""
     const fs = require('fs'), vm = require('vm');
-    const context = {{ window: {{}}, document: {{}}, fetch: () => {{}} }};
+    const context = {{ window: {{}}, document: {{ querySelector: () => null, querySelectorAll: () => [] }}, fetch: () => {{}} }};
     vm.createContext(context);
     vm.runInContext(fs.readFileSync({json.dumps(str(ROOT / 'web/admin.js'))}, 'utf8'), context);
     const h = context.window.adminHelpers;
-    const original = {{ models: {{ per_model: {{ a: {{ enabled: true }} }} }} }};
+    const original = {{ models: {{ default_dims: ['reasoning'], default_efforts: ['medium'], per_model: {{ a: {{ enabled: true }}, hidden: {{ enabled: false, interval_h: 9, dims: ['code'], efforts: ['low'] }} }} }} }};
+    const collected = h.collectSettings(original);
+    if (JSON.stringify(collected.models.per_model.hidden) !== JSON.stringify(original.models.per_model.hidden)) process.exit(3);
     const updated = h.bulkApply(original, ['a'], {{ interval_h: 3, dims: ['code'], efforts: ['high'] }});
     if (updated.models.per_model.a.interval_h !== 3 || updated.models.per_model.a.dims[0] !== 'code') process.exit(1);
     const errors = h.errorFields([{{field: 'run.max_tokens', message: 'too high'}}]);

@@ -115,20 +115,28 @@
   }
   function renderModels() {
     const query = ($('#model-search').value || '').toLowerCase();
+    const showUnpriced = $('#show-unpriced').checked;
+    const unpricedCount = (state.models || []).filter(model => !model.priced).length;
+    $('#show-unpriced-label').textContent = tr('showUnpriced', { n: unpricedCount });
     const tbody = $('#models-table tbody');
     tbody.innerHTML = '';
-    (state.models || []).filter(model => model.id.toLowerCase().includes(query)).forEach(model => {
+    (state.models || []).filter(model => model.id.toLowerCase().includes(query) && (showUnpriced || model.priced)).forEach(model => {
       const settings = modelSettings(model);
       const dims = settings.dims || state.settings.models.default_dims || DIMENSIONS;
       const efforts = settings.efforts || state.settings.models.default_efforts || ['medium'];
       const row = document.createElement('tr');
       row.dataset.model = model.id;
       if (!model.priced) row.className = 'no-price';
-      row.innerHTML = `<td><input class="model-select" type="checkbox" value="${model.id}"></td><td class="model-id">${model.id}</td><td><span class="admin-badge">${model.priced ? tr('priced') : tr('noPrice')}</span></td><td><input class="model-enabled" type="checkbox"${settings.enabled ? ' checked' : ''}${model.priced ? '' : ' disabled'}></td><td><input class="model-interval" type="number" min="1" value="${settings.interval_h || state.settings.models.default_interval_h}"></td><td><div class="model-dims compact-checks"></div></td><td><div class="model-efforts compact-checks"></div></td>`;
+       row.innerHTML = `<td><input class="model-select" type="checkbox" value="${model.id}"${model.priced ? '' : ' disabled'}></td><td class="model-id">${model.id}</td><td><span class="admin-badge">${model.priced ? tr('priced') : tr('noPrice')}</span></td><td><input class="model-enabled" type="checkbox"${settings.enabled ? ' checked' : ''}${model.priced ? '' : ' disabled'}></td><td><input class="model-interval" type="number" min="1" value="${settings.interval_h || state.settings.models.default_interval_h}"></td><td><div class="model-dims compact-checks"></div></td><td><div class="model-efforts compact-checks"></div></td>`;
       optionCheckboxes($('.model-dims', row), state.dims || DIMENSIONS, dims);
       optionCheckboxes($('.model-efforts', row), state.efforts || EFFORTS, efforts, 'effort');
       tbody.appendChild(row);
     });
+    const selectable = $$('.model-select:not(:disabled)');
+    const selected = selectable.filter(input => input.checked).length;
+    const selectAll = $('#select-all-models');
+    selectAll.checked = selectable.length > 0 && selected === selectable.length;
+    selectAll.indeterminate = selected > 0 && selected < selectable.length;
     updateBulkBar();
   }
   function updateBulkBar() {
@@ -182,6 +190,12 @@
   $('#test-connection').addEventListener('click', testConnection);
   $('#refresh-models').addEventListener('click', refreshModels);
   $('#model-search').addEventListener('input', renderModels);
+  $('#show-unpriced').addEventListener('change', renderModels);
+  $('#select-all-models').addEventListener('change', event => {
+    $$('.model-select:not(:disabled)').forEach(input => { input.checked = event.target.checked; });
+    updateBulkBar();
+    markDirty();
+  });
   $('#models-table').addEventListener('change', event => { if (event.target.classList.contains('model-select')) updateBulkBar(); markDirty(); });
   $('#bulk-apply').addEventListener('click', applyBulk);
   $('#console-view').addEventListener('input', event => { if (event.target.matches('input,select')) markDirty(); });
