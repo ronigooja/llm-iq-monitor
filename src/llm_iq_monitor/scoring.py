@@ -16,11 +16,22 @@ def _number(text: str) -> float:
 
 
 def _rules(question, reply):
+    """Apply rule metadata; Chinese length counts Han characters, not formatting."""
     rules = question.meta.get("rules", [])
     lines = [x for x in reply.splitlines() if x.strip()]
     for rule in rules:
         typ = rule["type"]
         if typ == "bullet_count" and sum(bool(re.match(r"^\s*[-*•]\s+", x)) for x in lines) != rule["value"]: return False
+        if typ == "paragraph_count" and len([p for p in re.split(r"\n\s*\n", reply.strip()) if p.strip()]) != rule["value"]: return False
+        if typ == "zh_char_count":
+            count = len(re.findall(r"[\u3400-\u4dbf\u4e00-\u9fff]", reply))
+            if not rule["min"] <= count <= rule["max"]: return False
+        if typ == "en_word_count":
+            count = len(re.findall(r"(?<![A-Za-z])[A-Za-z]+(?:['-][A-Za-z]+)*(?![A-Za-z])", reply))
+            if not rule["min"] <= count <= rule["max"]: return False
+        if typ == "required_selling_points" and any(item.casefold() not in reply.casefold() for item in rule["items"]): return False
+        if typ == "forbidden_words" and any(re.search(re.escape(item), reply, re.I) for item in rule["items"]): return False
+        if typ == "closing_phrase" and not reply.rstrip().endswith(rule["text"]): return False
         if typ == "lowercase" and reply != reply.lower(): return False
         if typ == "no_commas" and "," in reply: return False
         if typ == "keyword_count" and len(re.findall(rf"\b{re.escape(rule['word'])}\b", reply, re.I)) != rule["value"]: return False
