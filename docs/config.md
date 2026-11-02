@@ -65,7 +65,7 @@ The web console at `/admin/` ([web.md](web.md#page-admin-admin), [deployment.md]
 | Defaults and heartbeat | `schedule.heartbeat_cron` (next five ticks), `models.default_*`, `prices.*` |
 | Run limits | Parallel models, timeout, max tokens, round-trip fallback, reply retention |
 | Judge | Judge model (only models with a price) and effort; judge calls add cost |
-| Overview | Estimated runs and tokens per day ([scheduling.md](scheduling.md#token-budget)) |
+| Overview | Estimated runs and tokens, shown per week (daily value × 7, with K / M units) ([scheduling.md](scheduling.md#token-budget)) |
 
 The model list does not say which efforts a model accepts, so all three are offered for every model. Unsupported ones are recorded at run time ([metrics.md](metrics.md#effort-support)). Validation errors appear next to the field.
 

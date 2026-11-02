@@ -68,6 +68,15 @@
       return result;
     }, {});
   }
+  function formatCount(value) {
+    if (value == null || Number.isNaN(Number(value))) return '—';
+    const n = Number(value);
+    const trim = x => x.toFixed(1).replace(/\.0$/, '');
+    if (Math.abs(n) >= 1e6) return `${trim(n / 1e6)}M`;
+    if (Math.abs(n) >= 1e3) return `${trim(n / 1e3)}K`;
+    return String(Math.round(n));
+  }
+  function weekly(value) { return value == null ? null : Number(value) * 7; }
   function formatPrice(value) {
     if (value == null) return '—';
     return `$${Number(value).toFixed(2).replace(/\.?0+$/, '')}`;
@@ -75,7 +84,7 @@
   function formatModelPrice(model) {
     return model.price_in == null || model.price_out == null ? '—' : `${formatPrice(model.price_in)} / ${formatPrice(model.price_out)}`;
   }
-  window.adminHelpers = { collectSettings, bulkApply, bulkValues, errorFields, formatPrice, formatModelPrice };
+  window.adminHelpers = { collectSettings, bulkApply, bulkValues, errorFields, formatCount, weekly, formatPrice, formatModelPrice };
   if (typeof document.addEventListener !== 'function') return;
 
   function tr(key, vars) { return window.i18n.t(`admin.${key}`, vars); }
@@ -114,8 +123,8 @@
     optionCheckboxes($('#default-dims'), DIMENSIONS, state.settings.models.default_dims || DIMENSIONS);
     optionCheckboxes($('#default-efforts'), EFFORTS, state.settings.models.default_efforts || ['medium'], 'effort');
     $('#heartbeat-next').textContent = (state.heartbeat_next || []).join(' · ') || '—';
-    $('#runs-per-day').textContent = state.budget && state.budget.runs_per_day != null ? state.budget.runs_per_day : '—';
-    $('#tokens-per-day').textContent = state.budget && state.budget.tokens_per_day != null ? state.budget.tokens_per_day : '—';
+    $('#runs-per-week').textContent = window.adminHelpers.formatCount(window.adminHelpers.weekly(state.budget && state.budget.runs_per_day));
+    $('#tokens-per-week').textContent = window.adminHelpers.formatCount(window.adminHelpers.weekly(state.budget && state.budget.tokens_per_day));
     $('#key-status').textContent = state.key_set ? tr('keySet') : tr('keyNotSet');
     const priced = (state.models || []).filter(model => model.priced);
     const judge = $('[data-field="judge.model"]');

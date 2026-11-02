@@ -19,11 +19,11 @@ def registry_keys(language):
 def test_admin_html_uses_only_whitelisted_versioned_assets_and_no_inline_code():
     assert re.findall(r'<link[^>]+href="([^"]+)"', HTML) == [
         "/admin/static/style.css?v=2",
-        "/admin/static/admin.css?v=6",
+        "/admin/static/admin.css?v=7",
     ]
     assert re.findall(r'<script[^>]+src="([^"]+)"', HTML) == [
         "/admin/static/i18n.js?v=2",
-        "/admin/static/admin.js?v=6",
+        "/admin/static/admin.js?v=7",
     ]
     assert not re.search(r"<script(?![^>]+\bsrc=)[^>]*>", HTML, re.I)
     assert not re.search(r"\sstyle\s*=", HTML, re.I)
@@ -101,6 +101,8 @@ def test_admin_helpers_cover_dirty_bulk_and_error_mapping():
     if (h.bulkValues('6', ['code'], []).error !== 'bulkEfforts') process.exit(6);
     const ok = h.bulkValues('6', ['code'], ['low']);
     if (ok.error || ok.values.interval_h !== 6) process.exit(7);
+    if (h.formatCount(840) !== '840' || h.formatCount(1000) !== '1K' || h.formatCount(12500) !== '12.5K' || h.formatCount(3200000) !== '3.2M' || h.formatCount(null) !== '—') process.exit(9);
+    if (h.formatCount(h.weekly(120)) !== '840' || h.weekly(null) !== null) process.exit(10);
     const errors = h.errorFields([{{field: 'run.max_tokens', message: 'too high'}}]);
     if (errors['run.max_tokens'] !== 'too high') process.exit(2);
     """
