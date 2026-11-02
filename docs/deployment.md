@@ -47,6 +47,18 @@ Install: code and virtualenv in `/opt/llm-iq-monitor`; `uv lock` / `uv sync --fr
 
 All other settings, including the gateway URL and key, are in [config.md](config.md).
 
+## Host command
+
+The CLI must run as the service user with the two directories above. The host has a wrapper `/usr/local/bin/llm-iq-monitor` (not part of the repo) that does this:
+
+```sh
+#!/bin/sh
+cd /opt/llm-iq-monitor || exit 1
+exec runuser -u llm-iq-monitor -- env LLM_IQ_DATA_DIR=/var/lib/llm-iq-monitor LLM_IQ_CONFIG_DIR=/etc/llm-iq-monitor .venv/bin/llm-iq-monitor "$@"
+```
+
+Then `llm-iq-monitor config`, `llm-iq-monitor config set KEY VALUE`, `llm-iq-monitor manual MODEL` and `llm-iq-monitor migrate` work from any directory.
+
 ## Secrets
 
 - The key is entered through the config menu ([config.md](config.md#interactive-menu)) on the host and stored in `$LLM_IQ_CONFIG_DIR/secrets.env`, mode 600, owned by the service user; the Runner unit reads it through `EnvironmentFile`. The Web unit does not read it.
