@@ -50,6 +50,7 @@
       item.interval_h = Number(values.interval_h);
       item.dims = values.dims.slice();
       item.efforts = values.efforts.slice();
+      item.enabled = true;
       next.models.per_model[id] = item;
     });
     return next;
@@ -196,6 +197,12 @@
   function discard() { state = clone(original); renderSettings(); clearErrors(); setMessage('#save-message', tr('discarded')); }
   function testConnection() { setMessage('#connection-result', tr('testing')); jsonRequest('/admin/api/test', 'POST', {}).then(result => { setMessage('#connection-result', result.ok ? tr('connectionOk', { status: result.status, models: result.models }) : tr('connectionFailed', { message: result.error || tr('invalid') })); }).catch(error => setMessage('#connection-result', tr('connectionFailed', { message: error.message }))); }
   function refreshModels() { const button = $('#refresh-models'); button.disabled = true; button.textContent = tr('refreshing'); jsonRequest('/admin/api/models/refresh', 'POST', {}).then(next => { state = next; original = clone(next); renderSettings(); }).catch(error => { if (error.status === 401) showLogin(true); }).finally(() => { button.disabled = false; button.textContent = tr('refresh'); }); }
+  function resetBulk() {
+    $('#bulk-interval').value = '';
+    optionCheckboxes($('#bulk-dims'), DIMENSIONS, []);
+    optionCheckboxes($('#bulk-efforts'), EFFORTS, [], 'effort');
+    updateBulkBar();
+  }
   function applyBulk() {
     const ids = $$('.model-select:checked').map(input => input.value);
     const checked = window.adminHelpers.bulkValues($('#bulk-interval').value, selectedValues($('#bulk-dims')), selectedValues($('#bulk-efforts')));
@@ -203,8 +210,7 @@
     setMessage('#bulk-message', '');
     state.settings = window.adminHelpers.bulkApply(window.adminHelpers.collectSettings(state.settings), ids, checked.values);
     renderModels();
-    $$('.model-select').forEach(input => { input.checked = ids.includes(input.value); });
-    updateBulkBar();
+    resetBulk();
     markDirty();
   }
   document.addEventListener('langchange', () => { if (state) renderSettings(); window.i18n.apply(); });
@@ -224,8 +230,7 @@
   $('#models-table').addEventListener('change', event => { if (event.target.classList.contains('model-select')) updateBulkBar(); markDirty(); });
   $('#bulk-apply').addEventListener('click', applyBulk);
   $('#console-view').addEventListener('input', event => { if (event.target.matches('input,select')) markDirty(); });
-  optionCheckboxes($('#bulk-dims'), DIMENSIONS, DIMENSIONS);
-  optionCheckboxes($('#bulk-efforts'), EFFORTS, ['medium'], 'effort');
+  resetBulk();
   window.i18n.apply();
   loadState();
 }());

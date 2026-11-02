@@ -19,11 +19,11 @@ def registry_keys(language):
 def test_admin_html_uses_only_whitelisted_versioned_assets_and_no_inline_code():
     assert re.findall(r'<link[^>]+href="([^"]+)"', HTML) == [
         "/admin/static/style.css?v=2",
-        "/admin/static/admin.css?v=4",
+        "/admin/static/admin.css?v=5",
     ]
     assert re.findall(r'<script[^>]+src="([^"]+)"', HTML) == [
         "/admin/static/i18n.js?v=2",
-        "/admin/static/admin.js?v=4",
+        "/admin/static/admin.js?v=5",
     ]
     assert not re.search(r"<script(?![^>]+\bsrc=)[^>]*>", HTML, re.I)
     assert not re.search(r"\sstyle\s*=", HTML, re.I)
@@ -92,7 +92,8 @@ def test_admin_helpers_cover_dirty_bulk_and_error_mapping():
     const collected = h.collectSettings(original);
     if (JSON.stringify(collected.models.per_model.hidden) !== JSON.stringify(original.models.per_model.hidden)) process.exit(3);
     const updated = h.bulkApply(original, ['a'], {{ interval_h: 3, dims: ['code'], efforts: ['high'] }});
-    if (updated.models.per_model.a.interval_h !== 3 || updated.models.per_model.a.dims[0] !== 'code') process.exit(1);
+    if (updated.models.per_model.a.interval_h !== 3 || updated.models.per_model.a.dims[0] !== 'code' || updated.models.per_model.a.enabled !== true) process.exit(1);
+    if (JSON.stringify(updated.models.per_model.hidden) !== JSON.stringify(original.models.per_model.hidden)) process.exit(8);
     if (h.bulkValues('', ['code'], ['low']).error !== 'bulkInterval') process.exit(4);
     if (h.bulkValues('0', ['code'], ['low']).error !== 'bulkInterval') process.exit(4);
     if (h.bulkValues('2.5', ['code'], ['low']).error !== 'bulkInterval') process.exit(4);
