@@ -9,6 +9,7 @@ from pathlib import Path
 
 
 SCHEMA_VERSION = 3
+UI_HISTORY = 7
 
 
 def migrate_path() -> Path:
@@ -163,14 +164,23 @@ def insert_ui_sample(conn, run_id, prompt_key, prompt, svg, valid, created_at=No
         """
         UPDATE ui_samples
         SET svg=NULL
-        WHERE id<>? AND prompt_key=? AND run_id IN (
+        WHERE id NOT IN (
+          SELECT s.id
+          FROM ui_samples AS s
+          JOIN runs AS r ON r.id=s.run_id
+          WHERE r.model=(SELECT model FROM runs WHERE id=?
+          ) AND r.effort=(SELECT effort FROM runs WHERE id=?
+          ) AND s.prompt_key=?
+          ORDER BY s.created_at DESC, s.id DESC
+          LIMIT ?
+        ) AND prompt_key=? AND run_id IN (
           SELECT old.id
           FROM runs AS old
           JOIN runs AS current ON current.id=?
           WHERE old.model=current.model AND old.effort=current.effort
-        ) AND created_at < ?
+        )
         """,
-        (sample_id, prompt_key, run_id, created_at),
+        (run_id, run_id, prompt_key, UI_HISTORY, prompt_key, run_id),
     )
     return sample_id
 
