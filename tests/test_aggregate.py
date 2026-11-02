@@ -20,3 +20,27 @@ def test_finalize():
     row = conn.execute("SELECT * FROM run_dims").fetchone()
     assert row["n"] == 2 and row["n_err"] == 1 and row["score"] == 100
     assert conn.execute("SELECT status FROM runs").fetchone()[0] == "partial"
+
+
+def test_finalize_ui_and_future_dimensions():
+    conn = connect(":memory:")
+    conn.execute("INSERT INTO models(id,active) VALUES ('m',1)")
+    now = time.time()
+    run = create_run(conn, model="m", effort="medium", seed="s", dataset_version="v2", trigger="manual", dims='["ui", "future"]', params="{}", status="running", started_at=now)
+    insert_result(conn, run, qid="u1", dim="ui", correct=None, error=None, latency_s=1, ttft_s=.5)
+    insert_result(conn, run, qid="f1", dim="future", correct=1, error=None, latency_s=2, ttft_s=1)
+    conn.execute("UPDATE runs SET finished_at=? WHERE id=?", (now + 2, run))
+    finalize_run(conn, run)
+    ui = conn.execute("SELECT * FROM run_dims WHERE dim='ui'").fetchone()
+    future = conn.execute("SELECT * FROM run_dims WHERE dim='future'").fetchone()
+    assert ui["score"] is None and ui["n"] == 1 and ui["n_err"] == 0 and ui["availability"] == 1
+    assert future["score"] == 100
+
+
+def test_finalize_preserves_terminal_status():
+    conn = connect(":memory:")
+    conn.execute("INSERT INTO models(id,active) VALUES ('m',1)")
+    now = time.time()
+    run = create_run(conn, model="m", effort="medium", seed="s", dataset_version="v2", trigger="manual", dims="[]", params="{}", status="aborted", started_at=now, finished_at=now + 1)
+    finalize_run(conn, run)
+    assert conn.execute("SELECT status FROM runs WHERE id=?", (run,)).fetchone()[0] == "aborted"

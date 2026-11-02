@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def migrate_path() -> Path:
@@ -89,6 +89,28 @@ def migrate(conn: sqlite3.Connection):
                     conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {kind}")
         conn.execute("PRAGMA user_version=2")
         version = 2
+    if version < 3:
+        conn.executescript("""
+        CREATE TABLE IF NOT EXISTS ui_samples (
+          id INTEGER PRIMARY KEY,
+          run_id INTEGER NOT NULL REFERENCES runs(id),
+          prompt_key TEXT NOT NULL,
+          prompt TEXT NOT NULL,
+          svg TEXT,
+          valid INTEGER NOT NULL,
+          stars INTEGER,
+          rated_at REAL,
+          created_at REAL NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS ui_samples_run ON ui_samples(run_id);
+        CREATE INDEX IF NOT EXISTS ui_samples_stars_created ON ui_samples(stars, created_at);
+        """)
+        existing = {row[1] for row in conn.execute("PRAGMA table_info(results)")}
+        for name, kind in (("http_status", "INTEGER"), ("error_detail", "TEXT")):
+            if name not in existing:
+                conn.execute(f"ALTER TABLE results ADD COLUMN {name} {kind}")
+        conn.execute("PRAGMA user_version=3")
+        version = 3
     return version
 
 
@@ -105,6 +127,52 @@ def create_run(conn, **fields):
 
 def insert_result(conn, run_id, **fields):
     return _insert(conn, "results", {"run_id": run_id, **fields})
+
+
+def ui_sample_due(conn, model, effort, prompt_key, max_age_days, now=None):
+    now = time.time() if now is None else now
+    row = conn.execute(
+        """
+        SELECT s.stars, s.created_at
+        FROM ui_samples AS s
+        JOIN runs AS r ON r.id = s.run_id
+        WHERE r.model=? AND r.effort=? AND s.prompt_key=?
+        ORDER BY s.created_at DESC, s.id DESC
+        LIMIT 1
+        """,
+        (model, effort, prompt_key),
+    ).fetchone()
+    return row is None or row["stars"] is not None or now - row["created_at"] >= max_age_days * 86400
+
+
+def insert_ui_sample(conn, run_id, prompt_key, prompt, svg, valid, created_at=None):
+    created_at = time.time() if created_at is None else created_at
+    if svg is not None and len(svg) > 200 * 1024:
+        svg, valid = None, 0
+    sample_id = _insert(conn, "ui_samples", {
+        "run_id": run_id,
+        "prompt_key": prompt_key,
+        "prompt": prompt,
+        "svg": svg,
+        "valid": int(bool(valid)),
+        "stars": None,
+        "rated_at": None,
+        "created_at": created_at,
+    })
+    conn.execute(
+        """
+        UPDATE ui_samples
+        SET svg=NULL
+        WHERE id<>? AND prompt_key=? AND run_id IN (
+          SELECT old.id
+          FROM runs AS old
+          JOIN runs AS current ON current.id=?
+          WHERE old.model=current.model AND old.effort=current.effort
+        ) AND created_at < ?
+        """,
+        (sample_id, prompt_key, run_id, created_at),
+    )
+    return sample_id
 
 
 def finish_run(conn, run_id, **fields):

@@ -37,7 +37,10 @@ def finalize_run(conn, run_id):
         n = len(items); errors = sum(r["error"] is not None for r in items)
         good = [r for r in items if r["error"] is None]
         correct = sum(r["correct"] == 1 for r in good)
-        score = 100 * correct / len(good) if len(good) >= n / 2 else None
+        if dim == "ui":
+            score = None
+        else:
+            score = 100 * correct / len(good) if len(good) >= n / 2 else None
         lat = [adjust(r["latency_s"], rtt) for r in good]
         ttft = [adjust(r["ttft_s"], rtt) for r in good]
         in_tok = sum(r["in_tok"] or 0 for r in items if r["in_tok"] is not None) or None
@@ -47,7 +50,7 @@ def finalize_run(conn, run_id):
             cost = ((in_tok or 0) * run["price_in"] + (out_tok or 0) * run["price_out"]) / 1_000_000
         correct_cost = cost / correct if cost is not None and correct else None
         judged = [r["quality"] for r in items if r["quality"] is not None]
-        quality = sum(judged) / len(judged) if len(judged) >= n / 2 else None
+        quality = None if dim == "ui" else (sum(judged) / len(judged) if len(judged) >= n / 2 else None)
         judge_cost = None
         judge_in = sum(r["judge_in_tok"] or 0 for r in items if r["judge_in_tok"] is not None) or None
         judge_out = sum(r["judge_out_tok"] or 0 for r in items if r["judge_out_tok"] is not None) or None
@@ -58,5 +61,9 @@ def finalize_run(conn, run_id):
                      (run_id, dim, score, n, errors, (n-errors)/n if n else None, percentile(lat,.5), percentile(lat,.95), percentile(ttft,.5), sum(r["latency_s"] or 0 for r in items), in_tok, out_tok, cost, correct_cost, quality, judge_cost))
     status = "ok" if not any(r["error"] is not None for r in rows) else "partial"
     duration = (run["finished_at"] - run["started_at"]) if run["finished_at"] is not None and run["started_at"] is not None else None
-    conn.execute("UPDATE runs SET availability=?, duration_s=?, cost_usd=?, status=? WHERE id=?",
-                 (answered / total if total else None, duration, total_cost if has_cost else None, status, run_id))
+    if run["status"] not in {"aborted", "unsupported"}:
+        conn.execute("UPDATE runs SET availability=?, duration_s=?, cost_usd=?, status=? WHERE id=?",
+                     (answered / total if total else None, duration, total_cost if has_cost else None, status, run_id))
+    else:
+        conn.execute("UPDATE runs SET availability=?, duration_s=?, cost_usd=? WHERE id=?",
+                     (answered / total if total else None, duration, total_cost if has_cost else None, run_id))
