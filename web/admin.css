@@ -40,3 +40,26 @@ legend { padding:0 .25rem; }
 #login-form label { display:flex; flex-direction:column; gap:.35rem; }
 #login-form input { min-width:18rem; }
 @media (max-width:700px) { .overview { grid-template-columns:1fr; } #login-form input { min-width:12rem; } }
+
+/* Admin controls share one height so adjacent actions align. */
+.admin-app button,
+.admin-app input[type="search"],
+.admin-app input[type="url"],
+.admin-app input[type="password"],
+.admin-app input[type="number"],
+.admin-app select {
+  min-height:var(--control-h, 2.25rem);
+  height:var(--control-h, 2.25rem);
+  font-size:inherit;
+  padding:.35rem .65rem;
+}
+.admin-app .gateway-grid { align-items:end; }
+.admin-app .gateway-grid label > span:first-child { min-height:1.25em; }
+.admin-app .connection-control { display:flex; align-items:center; gap:.7rem; align-self:end; min-height:var(--control-h, 2.25rem); }
+.admin-app .connection-control .admin-message { min-width:0; }
+.admin-app .model-price { font-variant-numeric:tabular-nums; white-space:nowrap; }
+.admin-app #models-table input[type="number"] { max-width:5.5rem; }
+@media (max-width:700px) {
+  .admin-app .gateway-grid { grid-template-columns:1fr; }
+  .admin-app .connection-control { align-items:flex-start; flex-wrap:wrap; }
+}

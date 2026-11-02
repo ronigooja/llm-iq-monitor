@@ -6,6 +6,7 @@ from llm_iq_monitor.admin_logic import (
     next_heartbeat_ticks,
     set_enabled,
     validate_for_save,
+    model_rows,
 )
 from llm_iq_monitor.settings import DIMS, LEGACY_DIMS, Settings
 
@@ -49,6 +50,14 @@ def test_model_actions_respect_price_index_and_apply_choices():
     assert "free" not in settings.models.per_model
     apply_model_choice(settings, ["priced"], 2, ["math"], ["medium"])
     assert settings.effective("priced").interval_h == 2
+
+
+def test_model_rows_include_price_values_and_retain_priced_flag():
+    rows = model_rows(Settings(), ["priced", "unpriced"], {"priced": ("provider", 1.25, 10.0)})
+    assert rows == [
+        {"id": "priced", "enabled": False, "interval_h": 6, "dims": list(DIMS), "efforts": ["medium"], "priced": True, "price_in": 1.25, "price_out": 10.0},
+        {"id": "unpriced", "enabled": False, "interval_h": 6, "dims": list(DIMS), "efforts": ["medium"], "priced": False, "price_in": None, "price_out": None},
+    ]
 
 
 def test_ticks_and_save_validation_warnings():

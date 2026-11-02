@@ -19,11 +19,11 @@ def registry_keys(language):
 def test_admin_html_uses_only_whitelisted_versioned_assets_and_no_inline_code():
     assert re.findall(r'<link[^>]+href="([^"]+)"', HTML) == [
         "/admin/static/style.css?v=2",
-        "/admin/static/admin.css?v=2",
+        "/admin/static/admin.css?v=3",
     ]
     assert re.findall(r'<script[^>]+src="([^"]+)"', HTML) == [
         "/admin/static/i18n.js?v=2",
-        "/admin/static/admin.js?v=2",
+        "/admin/static/admin.js?v=3",
     ]
     assert not re.search(r"<script(?![^>]+\bsrc=)[^>]*>", HTML, re.I)
     assert not re.search(r"\sstyle\s*=", HTML, re.I)
@@ -39,12 +39,33 @@ def test_admin_i18n_keys_are_symmetric_and_used_keys_exist():
     assert used <= en, used - en
     assert {key for key in en if key.startswith("admin.")} <= zh
     assert "admin.heading" in en and "admin.bulkInterval" in en and "admin.showUnpriced" in en
-    assert 'data-i18n="admin.heading"' in HTML
+    assert len(re.findall(r"<h1\b", HTML)) == 1
+    assert HTML.count('data-i18n="admin.heading"') == 1
+    assert '<h2 data-i18n="admin.heading"' not in HTML
+    assert '<button id="logout"' in HTML and '<header>' in HTML
     assert 'data-i18n="nav.scores"' in HTML
     assert 'id="show-unpriced"' in HTML
     assert 'id="show-unpriced" type="checkbox"' in HTML
     assert ".bulk-bar[hidden], [hidden]" in CSS
     assert "white-space:nowrap" in CSS
+
+
+def test_admin_price_formatter_and_shared_control_height():
+    script = f"""
+    const fs = require('fs'), vm = require('vm');
+    const context = {{ window: {{}}, document: {{ querySelector: () => null, querySelectorAll: () => [] }}, fetch: () => {{}} }};
+    vm.createContext(context);
+    vm.runInContext(fs.readFileSync({json.dumps(str(ROOT / 'web/admin.js'))}, 'utf8'), context);
+    const h = context.window.adminHelpers;
+    if (h.formatModelPrice({{price_in: 1.25, price_out: 10}}) !== '$1.25 / $10') process.exit(1);
+    if (h.formatModelPrice({{price_in: null, price_out: 10}}) !== '—') process.exit(2);
+    """
+    result = subprocess.run(["node", "-e", script], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert "--control-h" in CSS
+    assert ".admin-app button" in CSS
+    assert 'id="key-status" class="admin-badge"' in HTML
+    assert HTML.index('id="key-status"') < HTML.index('id="gateway-key"')
 
 
 def test_admin_js_has_no_secret_storage_and_sets_admin_header_for_mutations():

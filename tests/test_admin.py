@@ -153,6 +153,18 @@ def test_state_never_returns_gateway_key(admin_client, caplog):
     assert "api_key" not in json.dumps(response.json())
 
 
+def test_state_models_expose_prices_and_priced_flag(admin_client):
+    client, *_ = admin_client
+    assert _login(client).status_code == 204
+    models = {item["id"]: item for item in client.get("/admin/api/state").json()["models"]}
+    assert models["alpha"]["priced"] is True
+    assert models["alpha"]["price_in"] == 1
+    assert models["alpha"]["price_out"] == 2
+    assert models["unpriced"]["priced"] is False
+    assert models["unpriced"]["price_in"] is None
+    assert models["unpriced"]["price_out"] is None
+
+
 def test_settings_round_trip_and_validation_shape(admin_client):
     client, *_ = admin_client
     assert _login(client).status_code == 204

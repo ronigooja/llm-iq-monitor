@@ -136,6 +136,8 @@ def model_rows(settings: Settings, model_ids: list[str], price_index: dict[str, 
             "dims": list(effective.dims),
             "efforts": list(effective.efforts),
             "priced": model_id in price_index,
+            "price_in": price_index[model_id][1] if model_id in price_index else None,
+            "price_out": price_index[model_id][2] if model_id in price_index else None,
         })
     return rows
 

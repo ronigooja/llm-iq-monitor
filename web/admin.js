@@ -60,7 +60,14 @@
       return result;
     }, {});
   }
-  window.adminHelpers = { collectSettings, bulkApply, errorFields };
+  function formatPrice(value) {
+    if (value == null) return '—';
+    return `$${Number(value).toFixed(2).replace(/\.?0+$/, '')}`;
+  }
+  function formatModelPrice(model) {
+    return model.price_in == null || model.price_out == null ? '—' : `${formatPrice(model.price_in)} / ${formatPrice(model.price_out)}`;
+  }
+  window.adminHelpers = { collectSettings, bulkApply, errorFields, formatPrice, formatModelPrice };
   if (typeof document.addEventListener !== 'function') return;
 
   function tr(key, vars) { return window.i18n.t(`admin.${key}`, vars); }
@@ -83,6 +90,7 @@
     $('#login-view').hidden = !show;
     $('#console-view').hidden = show;
     $('#save-bar').hidden = true;
+    $('#logout').hidden = show;
   }
   function setMessage(selector, text) { $(selector).textContent = text || ''; }
   function optionCheckboxes(container, values, selected, prefix) {
@@ -127,7 +135,7 @@
       const row = document.createElement('tr');
       row.dataset.model = model.id;
       if (!model.priced) row.className = 'no-price';
-       row.innerHTML = `<td><input class="model-select" type="checkbox" value="${model.id}"${model.priced ? '' : ' disabled'}></td><td class="model-id">${model.id}</td><td><span class="admin-badge">${model.priced ? tr('priced') : tr('noPrice')}</span></td><td><input class="model-enabled" type="checkbox"${settings.enabled ? ' checked' : ''}${model.priced ? '' : ' disabled'}></td><td><input class="model-interval" type="number" min="1" value="${settings.interval_h || state.settings.models.default_interval_h}"></td><td><div class="model-dims compact-checks"></div></td><td><div class="model-efforts compact-checks"></div></td>`;
+       row.innerHTML = `<td><input class="model-select" type="checkbox" value="${model.id}"${model.priced ? '' : ' disabled'}></td><td class="model-id">${model.id}</td><td class="model-price">${formatModelPrice(model)}</td><td><input class="model-enabled" type="checkbox"${settings.enabled ? ' checked' : ''}${model.priced ? '' : ' disabled'}></td><td><input class="model-interval" type="number" min="1" value="${settings.interval_h || state.settings.models.default_interval_h}"></td><td><div class="model-dims compact-checks"></div></td><td><div class="model-efforts compact-checks"></div></td>`;
       optionCheckboxes($('.model-dims', row), state.dims || DIMENSIONS, dims);
       optionCheckboxes($('.model-efforts', row), state.efforts || EFFORTS, efforts, 'effort');
       tbody.appendChild(row);
