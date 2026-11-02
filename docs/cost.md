@@ -31,6 +31,12 @@ cost_per_correct = cost_usd / correct questions        (null when there are none
 - A dimension whose questions all lack usage has null cost.
 - Run cost is the sum of the dimension costs. Per run, `cost_per_correct` is not stored; consumers divide.
 
+## Judge cost
+
+- Writing replies are rated by the judge model ([benchmark.md](benchmark.md#writing-and-judge)). Its cost uses the same formula and the judge model's own price from the same list, and is stored as `run_dims.judge_cost_usd`.
+- It is never added to `cost_usd` or `cost_per_correct`, which describe the tested model only.
+- The judge model must have a price ([config.md](config.md#global-settings)). Its unit prices are snapshotted per run (`runs.judge_price_in`, `runs.judge_price_out`) and not exposed.
+
 ## Price snapshot
 
 Every run stores the unit prices it used and when they were fetched (`runs.price_in`, `runs.price_out`, `runs.price_fetched_at`). Costs are computed at the end of the run and never recomputed, so a price change does not rewrite history. Unit prices stay in the database and are not exposed.

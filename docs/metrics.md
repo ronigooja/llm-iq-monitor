@@ -14,6 +14,8 @@ Single source for what is recorded and how it is aggregated. Table columns: [dat
 | `reasoning_ttft_s` | request start to first non-empty `delta.reasoning_content`; null if none arrives (raw) |
 | `in_tok`, `out_tok` | from the gateway's usage block; null if absent. `out_tok` includes reasoning tokens |
 | `reasoning_tok` | `usage.completion_tokens_details.reasoning_tokens`; null if absent |
+| `quality` | writing only: judged quality 0–100, null when not judged ([benchmark.md](benchmark.md#writing-and-judge)) |
+| `judge_in_tok`, `judge_out_tok`, `judge_latency_s` | writing only: the judge call's usage and time; null when not judged |
 
 Times marked raw are stored as measured and adjusted at aggregation ([Network round trip](#network-round-trip)).
 
@@ -48,6 +50,8 @@ The only check: if the gateway rejects the combination with HTTP 400, the run is
 | `time_total` | wall time spent on the dimension, errored questions included |
 | `in_tok`, `out_tok` | sums over the dimension's questions |
 | `cost_usd`, `cost_per_correct` | see [cost.md](cost.md#calculation) |
+| `quality` | writing only: mean of the non-null per-question `quality`; null when fewer than `n / 2` questions were judged |
+| `judge_cost_usd` | writing only: see [cost.md](cost.md#judge-cost) |
 
 "Answered" means not errored.
 
@@ -68,10 +72,17 @@ The only check: if the gateway rejects the combination with HTTP 400, the run is
 - This removes only the monitor-host-to-gateway network part. Gateway-to-provider time stays in, which is what routing cares about.
 - Approximation: the connect time is about one round trip; DNS and TLS setup are not removed separately.
 
+## Judge
+
+- Judge calls follow each writing question, serially, inside the run. Their tokens, time and cost are stored in the `judge_*` fields and are never part of `latency_*`, `ttft_p50`, `time_total`, `in_tok`, `out_tok`, `cost_usd` or `cost_per_correct`.
+- `runs.duration_s` is wall time and therefore includes judge calls; it is not exposed.
+- A failed judge call is not a question error and does not change `n_err` or availability.
+
 ## Principles
 
 - Efforts are never averaged or merged: every target has its own series.
 - Score, latency, availability and cost are stored separately and never merged into one number. Consumers apply their own weights.
 - Latency is measured from the monitor host ([deployment.md](deployment.md#host)) with the host-to-gateway network round trip removed. It still includes the gateway-to-provider path.
 - There is no overall score: routing selects per capability ([overview.md](overview.md#scope)).
+- `score` never depends on a judge. `quality` exists only for the writing dimensions and is never merged with `score`.
 - Smoothing and moving averages are computed by readers, not stored.

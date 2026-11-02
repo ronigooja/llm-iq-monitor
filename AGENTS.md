@@ -3,6 +3,7 @@
 - When writing repository docs: English, concise, define each fact in exactly one doc and link to it elsewhere.
 - When deciding whether something belongs in the project: only intelligence, runtime and cost are measured. Scope: [docs/overview.md](docs/overview.md#scope).
 - When changing question templates, scoring, or the output protocol: bump the dataset version per [docs/benchmark.md](docs/benchmark.md#dataset-versioning).
+- When adding judged (LLM-rated) output: store it in `quality` fields only, never in `score` or ranking order, and keep judge tokens, time and cost out of the tested model's figures ([docs/benchmark.md](docs/benchmark.md#writing-and-judge)).
 - When exposing data publicly: derived aggregates only. Never expose question text, expected answers, raw replies, or unit prices ([docs/api.md](docs/api.md#exposure-rules)).
 - When adding a user-tunable setting: define it once in [docs/config.md](docs/config.md) and expose it in the interactive menu. Do not hardcode tunables or repeat their values in other docs.
 - When adding functionality: use the maintained open-source libraries in [docs/architecture.md](docs/architecture.md#dependencies) before writing custom code, and record any new dependency there.

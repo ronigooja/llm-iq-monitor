@@ -24,6 +24,7 @@ Runner and Web are separate processes sharing one SQLite file in WAL mode, so th
 | Question generator | Build questions from a seed ([benchmark.md](benchmark.md#generation)) | custom |
 | Gateway client | Streaming chat completion; latency, time to first token, usage | httpx |
 | Scorer | Deterministic checkers ([benchmark.md](benchmark.md#scoring)) | custom |
+| Judge | Rates writing replies for `quality` through the same gateway client ([benchmark.md](benchmark.md#writing-and-judge)) | httpx |
 | Sandbox | Runs model-written code ([deployment.md](deployment.md#code-sandbox)) | Docker |
 | Aggregator | Per-dimension and per-run aggregates and cost ([metrics.md](metrics.md), [cost.md](cost.md)) | custom |
 | Storage | SQLite ([data-model.md](data-model.md)) | sqlite3 |
@@ -32,7 +33,7 @@ Runner and Web are separate processes sharing one SQLite file in WAL mode, so th
 
 1. The heartbeat fires; the dispatcher finds the enabled models that are due and queues them.
 2. A worker takes a model: loads the model list, checks the model and its price exist, builds the questions for its dimensions from the date seed.
-3. For each selected effort, in order: questions run serially; gateway client → scorer (or sandbox → scorer) → one `results` row per question.
+3. For each selected effort, in order: questions run serially; gateway client → scorer (or sandbox → scorer; for writing, also the judge) → one `results` row per question.
 4. The aggregator writes `run_dims` and updates the `runs` row, including cost.
 5. Datasette reads SQLite only; the static site calls its JSON queries.
 
@@ -78,6 +79,7 @@ src/llm_iq_monitor/
   prices.py
   questions/       one module per dimension + registry
   scoring.py
+  judge.py         writing quality rating
   sandbox.py
   gateway.py
   runner.py        cycle execution
@@ -95,4 +97,4 @@ tests/
 
 - Questions, expected answers, raw replies and unit prices never leave the host ([api.md](api.md#exposure-rules)).
 - A failed request is recorded, never retried ([metrics.md](metrics.md#errors)).
-- Core scores never depend on an LLM judge.
+- `score` never depends on an LLM judge. Only the writing dimensions have a judged `quality`, stored and shown separately.

@@ -35,7 +35,9 @@ runs(
   started_at REAL, finished_at REAL,
   status TEXT NOT NULL,         -- see metrics.md
   availability REAL, duration_s REAL, cost_usd REAL,
-  rtt_ms REAL                   -- see metrics.md#network-round-trip
+  rtt_ms REAL,                  -- see metrics.md#network-round-trip
+  judge_model TEXT,             -- writing runs only; null otherwise
+  judge_price_in REAL, judge_price_out REAL
 );
 
 run_dims(
@@ -45,6 +47,7 @@ run_dims(
   latency_p50 REAL, latency_p95 REAL, ttft_p50 REAL,
   time_total REAL, in_tok INTEGER, out_tok INTEGER,
   cost_usd REAL, cost_per_correct REAL,
+  quality REAL, judge_cost_usd REAL,   -- writing only, see metrics.md#judge
   PRIMARY KEY (run_id, dim)
 );
 
@@ -56,13 +59,15 @@ results(
   correct INTEGER, error TEXT, finish_reason TEXT,
   latency_s REAL, ttft_s REAL, reasoning_ttft_s REAL,   -- raw times
   in_tok INTEGER, out_tok INTEGER, reasoning_tok INTEGER,
+  quality REAL,                 -- writing only
+  judge_in_tok INTEGER, judge_out_tok INTEGER, judge_latency_s REAL,
   reply TEXT                    -- truncated, see retention
 );
 ```
 
 Indexes: `runs(model, effort, started_at)`, `runs(status, finished_at)`, `results(run_id)`.
 
-`prices`, `runs.price_*`, `runs.rtt_ms` and `results` are not readable through the public API ([api.md](api.md#exposure-rules)).
+`prices`, `runs.price_*`, `runs.judge_*`, `runs.rtt_ms`, `run_dims.judge_cost_usd` and `results` are not readable through the public API ([api.md](api.md#exposure-rules)).
 
 ## Retention
 
@@ -73,7 +78,7 @@ Indexes: `runs(model, effort, started_at)`, `runs(status, finished_at)`, `result
 
 ## Migrations
 
-Schema version in `PRAGMA user_version`. Migrations are forward-only SQL steps run by the CLI at startup.
+Schema version in `PRAGMA user_version`. Migrations are forward-only SQL steps run by the CLI at startup. Step 2 adds the writing and judge columns; existing rows keep null there and all earlier data stays untouched.
 
 ## Backup
 

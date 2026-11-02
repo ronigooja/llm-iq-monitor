@@ -14,6 +14,10 @@
 | Efforts | `low`, `medium`, `high` only; no `default`. A newly enabled model starts with `medium`. Each effort is its own target |
 | Question seed | The UTC date |
 | Max output tokens | Default 16384, adjustable |
+| Writing dimensions | `write_zh` and `write_en`, 6 questions each, scored separately. Rule checks give `score`; a judge model gives a separate `quality` ([benchmark.md](benchmark.md#writing-and-judge)) |
+| Self-judging | Allowed: a model that is the judge still gets a `quality` ([benchmark.md](benchmark.md#writing-and-judge)) |
+| Dimension selection | Global default and per model, multi-select, all checked by default ([config.md](config.md#per-model-settings)) |
+| Judge | Selectable in the config menu, default `claude-opus-5-5`; effort default `low`. Judge cost and time recorded separately ([config.md](config.md#global-settings)) |
 | Network round trip | Measured per run by TCP connect to the gateway, fallback 30 ms (the user measured ping at about 30 ms), subtracted once per request ([metrics.md](metrics.md#network-round-trip)) |
 | Latency vantage point | The monitor host only |
 | Code sandbox | One-shot Docker containers; the Docker-daemon risk is accepted ([deployment.md](deployment.md#code-sandbox)) |
