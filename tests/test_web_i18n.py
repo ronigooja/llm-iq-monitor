@@ -58,3 +58,10 @@ def test_dimensions_query_keeps_display_order_and_text():
     sql = metadata["databases"]["monitor"]["queries"]["dimensions"]["sql"]
     assert "'reasoning'" in sql and "'ui'" in sql
     assert sql.index("'reasoning'") < sql.index("'code'") < sql.index("'instruction'") < sql.index("'write_zh'") < sql.index("'write_en'") < sql.index("'ui'")
+
+
+def test_static_files_have_no_merge_markers():
+    from pathlib import Path
+    for path in (Path(__file__).parents[1] / "web").glob("*.*"):
+        text = path.read_text(encoding="utf-8")
+        assert not any(line.startswith(("<<<<<<<", ">>>>>>>")) or line == "=======" for line in text.splitlines()), path

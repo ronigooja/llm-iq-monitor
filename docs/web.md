@@ -1,6 +1,6 @@
 # Web
 
-Three pages served by Datasette (`--static` for assets, templates under `deploy/templates/pages/`). Real paths, no `#` routing: `/` (Scores), `/compare` (Compare), `/ui` (UI samples). Data comes only from the public queries ([api.md](api.md)). No model detail page. No build step.
+Three pages served by Datasette (`--static` for assets, templates under `deploy/templates/pages/`). Real paths, no `#` routing: `/` (Scores), `/compare` (Compare), `/ui` (UI samples), `/api` (API reference). Data comes only from the public queries ([api.md](api.md)). No model detail page. No build step.
 
 ## Style rules
 
@@ -14,11 +14,15 @@ Three pages served by Datasette (`--static` for assets, templates under `deploy/
 
 ## Cache
 
-Cloudflare caches `/static/*` for hours. After changing `web/app.js` or `web/style.css`, bump the `?v=` query on their URLs in `deploy/templates/index.html`.
+Cloudflare caches `/static/*` for hours. After changing any file in `web/`, bump the `?v=` query on its URL in every template under `deploy/templates/`.
 
 ## Layout
 
-All pages share one header (title, page links **Scores**, **Compare**, **UI**; the current one is highlighted) and one footer (dataset version, time of the last finished run). The range switch (7d, 30d, 90d, all) appears on Scores only. The Compare page and the UI page each have their own script; `app.js` holds the shared helpers.
+All pages share one header (title, page links **Scores**, **Compare**, **UI**, **API**; the current one is highlighted; language switch) and one footer (dataset version, time of the last finished run). The range switch (7d, 30d, 90d, all) appears on Scores only. The Compare page and the UI page each have their own script; `app.js` holds the shared helpers.
+
+## Language
+
+English and Simplified Chinese, switched by the `English / 中文` buttons in the header. The first visit follows `navigator.language` (`zh*` gives Chinese); the choice is kept in `localStorage` key `lang`. `web/i18n.js` is loaded before `app.js` and exposes `window.i18n` (`lang`, `setLang`, `t`, `add`, `apply`); static text carries `data-i18n="key"`, page scripts register their strings with `i18n.add({en, zh})` and re-render on the `langchange` event. Model ids, numbers, units, effort keys and API field names are never translated. Chinese dimension names and "use it when" texts are keyed `dim.<dim>.name` / `dim.<dim>.use` and replace the `dimensions` query text in Chinese mode.
 
 ## Dimension names
 
@@ -56,3 +60,7 @@ Buttons and cards use the names from the `dimensions` query: the dimension key p
 ## Not shown
 
 Question text, answers, replies, per-question results, unit prices ([api.md](api.md#exposure-rules)).
+
+## Page: API (`/api`)
+
+Public reference built from [api.md](api.md): every query with purpose, parameters, columns and a live example link with a "Try it" button (first three rows, rendered as text). Quick start, field semantics and exposure rules are static text; the dimensions table is loaded from the `dimensions` query. `rate` and `whoami` are listed as owner-only. Same CSP as the UI page.
