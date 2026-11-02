@@ -26,6 +26,13 @@ def test_i18n_registry_is_symmetric_and_template_keys_exist():
     assert used <= en
 
 
+def test_api_page_shared_keys_exist_in_the_registry():
+    en = _registry_keys("en")
+    page = (ROOT / "deploy/templates/pages/api.html").read_text()
+    shared = {k for k in re.findall(r'data-i18n="([^"]+)"', page) if not k.startswith("api.")}
+    assert shared <= en, shared - en
+
+
 @pytest.fixture
 async def web_client(monitor_db):
     ds = Datasette(
@@ -47,7 +54,8 @@ async def test_web_pages_have_i18n_header_and_ui_csp(web_client):
         body = response.text
         assert 'id="lang-switch"' in body
         assert 'href="/api"' in body
-        assert '/static/i18n.js?v=9' in body
+        versions = set(re.findall(r"/static/[\w./-]+\?v=(\d+)", body))
+        assert '/static/i18n.js?v=' in body and len(versions) == 1, versions
     ui = (await web_client.get("/ui")).text
     assert "Content-Security-Policy" in ui
     assert not re.search(r"<script[^>]*>\s*[^<]+", ui)
