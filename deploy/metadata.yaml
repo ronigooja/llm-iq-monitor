@@ -17,7 +17,7 @@ databases:
           WITH latest AS (
             SELECT r.id AS run_id, r.model, r.effort, r.finished_at,
                    r.dataset_version, r.status,
-                   d.dim, d.score, d.latency_p50, d.latency_p95,
+                    d.dim, d.score, d.quality, d.latency_p50, d.latency_p95,
                    d.ttft_p50, d.time_total, d.n, d.n_err, d.cost_usd,
                    d.cost_per_correct, d.availability,
                    ROW_NUMBER() OVER (
@@ -38,7 +38,7 @@ databases:
           )
           SELECT CASE WHEN score IS NULL THEN NULL ELSE score_rank END AS rank,
                  model, effort, run_id, finished_at, dataset_version, status,
-                 availability, score, latency_p50, latency_p95,
+                  availability, score, quality, latency_p50, latency_p95,
                  ttft_p50, time_total, n, n_err, cost_usd, cost_per_correct
           FROM ranked
           ORDER BY CASE WHEN score IS NULL THEN 1 ELSE 0 END,
@@ -48,7 +48,7 @@ databases:
         allow: true
         sql: |
           SELECT r.finished_at AS t, r.id AS run_id, r.dataset_version,
-                 d.score, d.latency_p50, d.latency_p95, d.ttft_p50,
+                  d.score, d.quality, d.latency_p50, d.latency_p95, d.ttft_p50,
                  d.time_total, d.availability,
                  d.cost_per_correct
           FROM runs AS r JOIN run_dims AS d ON d.run_id = r.id

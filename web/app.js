@@ -1,5 +1,10 @@
 (() => {
-  const DIMS = ['trap', 'math', 'logic', 'code', 'instruction', 'science'];
+  const DIMS = [
+    { key: 'trap', label: 'trap' }, { key: 'math', label: 'math' },
+    { key: 'logic', label: 'logic' }, { key: 'code', label: 'code' },
+    { key: 'instruction', label: 'instruction' }, { key: 'science', label: 'science' },
+    { key: 'write_zh', label: 'Writing · 中文' }, { key: 'write_en', label: 'Writing · English' },
+  ];
   const EFFORT_ORDER = ['low', 'medium', 'high'];
   const RANGE_DAYS = { '7d': 7, '30d': 30, '90d': 90 };
   const state = { range: '30d', models: new Map() };
@@ -52,17 +57,17 @@
     const root = document.querySelector('#scores');
     if (!groups.length) { root.innerHTML = '<p class="muted">No finished runs yet.</p>'; return; }
     root.innerHTML = groups.map((g, i) => {
-      const dims = DIMS.filter(d => g.dims.has(d));
+       const dims = DIMS.filter(d => g.dims.has(d.key));
       const efforts = EFFORT_ORDER.filter(e => g.efforts.has(e));
-      return `<article class="card" data-model="${esc(g.model)}">
-        <div class="card-header"><h2>${esc(g.model)}</h2><span class="muted meta"></span></div>
-        <div class="button-row dims">${dims.map(d => button(d, `data-dim="${d}"`)).join('')}</div>
+       return `<article class="card" data-model="${esc(g.model)}">
+         <div class="card-header"><h2>${esc(g.model)}</h2><span class="muted meta"></span></div>
+         <div class="button-row dims">${dims.map(d => button(d.label, `data-dim="${d.key}"`)).join('')}</div>
         <div class="button-row efforts">${efforts.map(e => button(e, `data-effort="${e}"`)).join('')}</div>
         <div class="chart"></div></article>`;
     }).join('');
     root.querySelectorAll('.card').forEach(el => {
       const g = state.models.get(el.dataset.model);
-      el.dataset.dim = DIMS.find(d => g.dims.has(d));
+       el.dataset.dim = DIMS.find(d => g.dims.has(d.key)).key;
       el.dataset.effort = initialEffort(g);
       el.querySelectorAll('.dims button').forEach(b => { b.onclick = () => { el.dataset.dim = b.dataset.dim; renderChart(el); }; });
       el.querySelectorAll('.efforts button').forEach(b => { b.onclick = () => { el.dataset.effort = b.dataset.effort; renderChart(el); }; });
@@ -105,7 +110,9 @@
     const t0 = rows[0].t, t1 = rows[rows.length - 1].t;
     const pad = t1 === t0 ? 6 * 3600 : (t1 - t0) * 0.03;
     const xMin = t0 - pad, xMax = t1 + pad;
+    const showQuality = (dim === 'write_zh' || dim === 'write_en') && rows.some(r => r.quality != null);
     const data = [rows.map(r => r.t), rows.map(r => r.score), rows.map(r => r.latency_p50)];
+    if (showQuality) data.push(rows.map(r => r.quality));
     new uPlot({
       width: Math.max(300, target.clientWidth), height: 240,
       cursor: { drag: { x: false, y: false } },
@@ -118,6 +125,7 @@
         {},
         { label: 'Score', scale: 'score', stroke: accent, width: 2, points: { show: rows.length < 60, size: 6, fill: accent } },
         { label: 'Time to solve (s)', scale: 'latency', stroke: muted, width: 2, dash: [6, 4], points: { show: rows.length < 60, size: 5, fill: muted } },
+        ...(showQuality ? [{ label: 'Quality (judged)', scale: 'score', stroke: fg, width: 2, dash: [2, 4], points: { show: rows.length < 60, size: 5, fill: fg } }] : []),
       ],
       axes: [
         { stroke: muted, grid: { stroke: line, width: 1 }, ticks: { stroke: line } },
@@ -142,17 +150,17 @@
   async function loadCompare() {
     const root = document.querySelector('#compare');
     root.dataset.loaded = '1';
-    root.innerHTML = '<p class="muted legend">Bar = score (0–100). Dot = time to solve: request start to end of reply, thinking included, network round trip removed; dot position is relative to the slowest row of the card. Text = score · time · cost per correct answer.</p>' + DIMS.map(d => `<article class="card compare-card"><h2>${esc(d)}</h2><div class="ranking" id="rank-${d}">Loading…</div></article>`).join('');
+    root.innerHTML = '<p class="muted legend">Bar = score (0–100). Dot = time to solve: request start to end of reply, thinking included, network round trip removed; dot position is relative to the slowest row of the card. Text = score · judged quality for writing · time · cost per correct answer.</p>' + DIMS.map(d => `<article class="card compare-card"><h2>${esc(d.label)}</h2><div class="ranking" id="rank-${d.key}">Loading…</div></article>`).join('');
     await Promise.all(DIMS.map(async d => {
-      const box = root.querySelector(`#rank-${d}`);
+      const box = root.querySelector(`#rank-${d.key}`);
       try {
-        const rows = await api('ranking', { dim: d });
+        const rows = await api('ranking', { dim: d.key });
         const max = Math.max(1, ...rows.map(x => x.latency_p50 || 0));
         box.innerHTML = rows.map(x => `<div class="rank-row">
           <span class="rank">${x.rank ?? '—'}</span>
           <span class="name">${esc(x.model)}<span class="muted">@${esc(x.effort)}</span></span>
           <span class="track"><span class="bar" style="width:${x.score == null ? 0 : x.score}%"></span>${x.latency_p50 == null ? '' : `<span class="dot" style="left:${x.latency_p50 / max * 100}%"></span>`}</span>
-          <span class="row-value">${num(x.score)} · ${secs(x.latency_p50)} · ${usd(x.cost_per_correct)}</span></div>`).join('') || '<p class="muted">No data.</p>';
+           <span class="row-value">${num(x.score)}${d.key.startsWith('write_') ? ` · ${x.quality == null ? '—' : num(x.quality, 0)} judged` : ''} · ${secs(x.latency_p50)} · ${usd(x.cost_per_correct)}</span></div>`).join('') || '<p class="muted">No data.</p>';
       } catch (e) { box.textContent = 'Unable to load data.'; }
     }));
   }
@@ -161,7 +169,7 @@
     const health = (await api('health'))[0] || {};
     document.querySelector('#last-run').textContent = when(health.last_finished_at);
     try {
-      const rows = await api('ranking', { dim: DIMS[0] });
+      const rows = await api('ranking', { dim: DIMS[0].key });
       const versions = [...new Set(rows.map(r => r.dataset_version))];
       document.querySelector('#dataset').textContent = versions.join(', ') || '—';
     } catch (e) { /* footer stays at the placeholder */ }
