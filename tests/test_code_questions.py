@@ -30,7 +30,7 @@ from llm_iq_monitor.questions.code import extract_code, generate
 def test_generation_is_deterministic_and_complete():
     first = generate("2026-11-02")
     second = generate("2026-11-02")
-    assert len(first) == 10
+    assert len(first) == 12
     assert [q.meta for q in first] == [q.meta for q in second]
     assert all(q.kind == "code" and len(q.meta["tests"]) == 10 for q in first)
 
@@ -58,6 +58,8 @@ def test_reference_solutions_pass_generated_cases():
         lambda numbers: sum(_prime(n) for n in numbers),
         lambda values, amount: values[-amount % len(values):] + values[:-amount % len(values)] if values else [],
         lambda intervals: _merge(intervals),
+        lambda values: max(range(len(values)), key=lambda i: values[i]) if values else -1,
+        lambda words: min(words, key=lambda w: (-len(w), w)) if words else "",
     ]
     for question, reference in zip(generate("test"), refs):
         for case in question.meta["tests"]:
