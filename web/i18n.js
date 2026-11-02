@@ -11,7 +11,8 @@
     'dim.reasoning.name':'Reasoning','dim.reasoning.use':'Multi-step reasoning, avoiding common-sense traps, reading tables and figures, not making things up',
     'dim.code.name':'Code','dim.code.use':'Writing a function, reading code, fixing a bug','dim.instruction.name':'Instruction following','dim.instruction.use':'Following a strict output format, extracting fields into JSON',
     'dim.write_zh.name':'Writing · 中文','dim.write_zh.use':'Chinese marketing copy','dim.write_en.name':'Writing · English','dim.write_en.use':'English marketing copy',
-    'dim.ui.name':'Drawing (SVG)','dim.ui.use':'Drawing and visual layout, shown as SVG'
+    'dim.ui.name':'Drawing (SVG)','dim.ui.use':'Drawing and visual layout, shown as SVG',
+    'meta.title':'LLM IQ Monitor · Model scores by capability','meta.description':'Scheduled LLM benchmark by capability: reasoning, code, instruction following, writing, drawing.'
   }, zh: {
     'nav.scores':'评分','nav.compare':'比较','nav.ui':'绘图','nav.api':'API','lang.english':'English','lang.chinese':'中文',
     'range.7d':'7天','range.30d':'30天','range.90d':'90天','range.all':'全部','footer.dataset':'数据集','footer.lastRun':'最近完成运行',
@@ -23,11 +24,32 @@
     'availability':'可用率 {n}% · 最近运行 {date}','effort.low':'低','effort.medium':'中','effort.high':'高',
     'dim.reasoning.name':'推理','dim.reasoning.use':'多步推理、避开常识陷阱、读表格和数据、不胡编乱造','dim.code.name':'代码','dim.code.use':'写函数、读代码、修 bug',
     'dim.instruction.name':'指令遵循','dim.instruction.use':'严格遵守输出格式、把信息抽取成 JSON','dim.write_zh.name':'写作 · 中文','dim.write_zh.use':'中文营销文案',
-    'dim.write_en.name':'写作 · English','dim.write_en.use':'英文营销文案','dim.ui.name':'绘图（SVG）','dim.ui.use':'绘图与视觉布局，以 SVG 展示'
+    'dim.write_en.name':'写作 · English','dim.write_en.use':'英文营销文案','dim.ui.name':'绘图（SVG）','dim.ui.use':'绘图与视觉布局，以 SVG 展示',
+    'meta.title':'LLM IQ Monitor · 大模型分项能力评分','meta.description':'按能力定时评测大模型：推理、代码、指令遵循、写作、绘图，含耗时与成本。'
   }};
+  const pageMeta = {
+    scores: {
+      en: { title:'LLM IQ Monitor · Model scores by capability', description:'Scheduled LLM benchmark by capability: reasoning, code, instruction following, writing, drawing.' },
+      zh: { title:'LLM IQ Monitor · 大模型分项能力评分', description:'按能力定时评测大模型：推理、代码、指令遵循、写作、绘图，含耗时与成本。' }
+    },
+    compare: {
+      en: { title:'Compare models · LLM IQ Monitor', description:'Side-by-side score, time to solve and cost per model and effort.' },
+      zh: { title:'模型对比 · LLM IQ Monitor', description:'按模型和推理档位并排对比分数、解题时间和成本。' }
+    },
+    ui: {
+      en: { title:'SVG drawing samples · LLM IQ Monitor', description:'SVG drawings by each model, such as a pelican riding a bicycle.' },
+      zh: { title:'SVG 绘图样本 · LLM IQ Monitor', description:'各模型生成的 SVG 绘图样本，例如骑自行车的鹈鹕。' }
+    },
+    api: {
+      en: { title:'API reference · LLM IQ Monitor', description:'Public read-only JSON API for scores, history and dimensions.' },
+      zh: { title:'API 参考 · LLM IQ Monitor', description:'公开只读 JSON 接口：评分、历史、能力维度。' }
+    }
+  };
+  const page = location.pathname === '/compare' ? 'compare' : location.pathname === '/ui' ? 'ui' : location.pathname === '/api' ? 'api' : 'scores';
+  ['en','zh'].forEach(language => { registry[language]['meta.title'] = pageMeta[page][language].title; registry[language]['meta.description'] = pageMeta[page][language].description; });
   let current=localStorage.getItem('lang'); if(current!=='en'&&current!=='zh') current=(navigator.language||'').toLowerCase().startsWith('zh')?'zh':'en';
   function t(key,vars){const text=registry[current][key]||registry.en[key]||key;return text.replace(/\{(\w+)\}/g,(_,n)=>vars&&vars[n]!=null?vars[n]:`{${n}}`);}
-  function apply(root){root=root||document;root.querySelectorAll('[data-i18n]').forEach(el=>{el.textContent=t(el.dataset.i18n);});root.querySelectorAll('[data-i18n-attr]').forEach(el=>el.dataset.i18nAttr.split(',').forEach(pair=>{const [attr,key]=pair.split(':');if(attr&&key)el.setAttribute(attr,t(key));}));document.documentElement.lang=current==='zh'?'zh-CN':'en';root.querySelectorAll('#lang-switch [data-lang]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.lang===current)));}
+  function apply(root){root=root||document;root.querySelectorAll('[data-i18n]').forEach(el=>{el.textContent=t(el.dataset.i18n);});root.querySelectorAll('[data-i18n-attr]').forEach(el=>el.dataset.i18nAttr.split(',').forEach(pair=>{const [attr,key]=pair.split(':');if(attr&&key)el.setAttribute(attr,t(key));}));const title=root.querySelector('title');const description=root.querySelector('meta[name="description"]');if(title)title.textContent=t('meta.title');if(description)description.setAttribute('content',t('meta.description'));document.documentElement.lang=current==='zh'?'zh-CN':'en';root.querySelectorAll('#lang-switch [data-lang]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.lang===current)));}
   window.i18n={lang:()=>current,setLang:l=>{if(l!=='en'&&l!=='zh')return;current=l;localStorage.setItem('lang',l);apply();document.dispatchEvent(new CustomEvent('langchange',{detail:{lang:l}}));},t,add:dict=>['en','zh'].forEach(l=>Object.assign(registry[l],dict[l]||{})),apply};
   document.addEventListener('click',e=>{const button=e.target.closest('#lang-switch [data-lang]');if(button)window.i18n.setLang(button.dataset.lang);});window.i18n.apply();
 }());
