@@ -53,8 +53,12 @@ def test_admin_html_has_every_availability_field_once_with_hint_and_order():
         assert re.search(r'<small class="admin-hint" data-i18n="admin\.[^"]+">', field_block) or field == "schedule.defer_when_busy", field
 
 
-def test_admin_html_status_panel_sits_after_overview_and_before_models():
-    assert HTML.index('id="status-heading"') < HTML.index('id="models-heading"')
+def test_admin_html_status_panel_is_its_own_tab_after_the_settings_pane():
+    assert HTML.index('id="settings-pane"') < HTML.index('id="status-pane"')
+    settings_pane, status_pane = HTML.split('id="status-pane"', 1)
+    assert 'id="status-heading"' not in settings_pane and 'id="status-heading"' in status_pane
+    assert 'id="models-heading"' in settings_pane and 'id="overview-heading"' in settings_pane
+    assert 'data-tab="settings"' in HTML and 'data-tab="status"' in HTML
     assert 'id="refresh-status"' in HTML and 'id="runner-stopped"' in HTML and 'id="status-table"' in HTML
     assert len(re.findall(r"<h1\b", HTML)) == 1
 
@@ -110,7 +114,7 @@ console.log(JSON.stringify({ last: cells.last, next: cells.next, probe: cells.pr
 
 def test_admin_status_polling_is_visible_only_and_fifteen_seconds():
     assert "STATUS_INTERVAL_MS = 15000" in JS
-    assert "if (!document.hidden && state) refreshStatus()" in JS
+    assert "if (!document.hidden && state && activeTab === 'status') refreshStatus()" in JS
     assert "visibilitychange" in JS
     assert "'/admin/api/status'" in JS
     assert "escapeHtml" in JS

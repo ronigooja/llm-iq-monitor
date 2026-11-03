@@ -10,6 +10,8 @@
   let original = null;
   let lastStatus = null;
   let statusTimer = null;
+  let activeTab = 'settings';
+  let dirty = false;
   const STATUS_INTERVAL_MS = 15000;
 
   function escapeHtml(value) {
@@ -140,8 +142,10 @@
   function showLogin(show) {
     $('#login-view').hidden = !show;
     $('#console-view').hidden = show;
+    dirty = false;
     $('#save-bar').hidden = true;
     $('#logout').hidden = show;
+    if (show) selectTab('settings');
   }
   function setMessage(selector, text) { $(selector).textContent = text || ''; }
   function optionCheckboxes(container, values, selected, prefix) {
@@ -205,7 +209,15 @@
     $('#bulk-bar').hidden = count === 0;
     $('#selected-count').textContent = tr('selected', { n: count });
   }
-  function markDirty() { $('#save-bar').hidden = false; setMessage('#save-message', ''); }
+  function markDirty() { dirty = true; $('#save-bar').hidden = activeTab !== 'settings'; setMessage('#save-message', ''); }
+  function selectTab(tab) {
+    activeTab = tab === 'status' ? 'status' : 'settings';
+    $$('#admin-tabs [data-tab]').forEach(button => button.setAttribute('aria-selected', String(button.dataset.tab === activeTab)));
+    $('#settings-pane').hidden = activeTab !== 'settings';
+    $('#status-pane').hidden = activeTab !== 'status';
+    $('#save-bar').hidden = activeTab !== 'settings' || !dirty;
+    if (activeTab === 'status' && state) refreshStatus();
+  }
   function clearErrors() { $$('.field-error').forEach(node => node.remove()); $('#validation-summary').hidden = true; }
   function showErrors(errors) {
     clearErrors();
@@ -243,11 +255,11 @@
   }
   function startStatusPolling() {
     if (statusTimer) return;
-    statusTimer = setInterval(() => { if (!document.hidden && state) refreshStatus(); }, STATUS_INTERVAL_MS);
+    statusTimer = setInterval(() => { if (!document.hidden && state && activeTab === 'status') refreshStatus(); }, STATUS_INTERVAL_MS);
   }
   function loadState() {
     setMessage('#load-message', tr('loading'));
-    return request('/admin/api/state').then(next => { state = next; original = clone(next); renderSettings(); showLogin(false); setMessage('#load-message', ''); refreshStatus(); startStatusPolling(); }).catch(error => {
+    return request('/admin/api/state').then(next => { state = next; original = clone(next); renderSettings(); showLogin(false); setMessage('#load-message', ''); startStatusPolling(); if (activeTab === 'status') refreshStatus(); }).catch(error => {
       if (error.status === 401) { showLogin(true); setMessage('#load-message', tr('unauthorized')); } else setMessage('#load-message', tr('loadFailed'));
     });
   }
@@ -265,9 +277,9 @@
     const settings = collectSettings(state.settings);
     const key = $('#gateway-key').value;
     const keyRequest = key ? jsonRequest('/admin/api/key', 'PUT', { key }) : Promise.resolve(null);
-    keyRequest.then(() => jsonRequest('/admin/api/settings', 'PUT', settings)).then(next => { $('#gateway-key').value = ''; state = next; original = clone(next); renderSettings(); setMessage('#save-message', tr('saved')); }).catch(error => { if (error.status === 401) { showLogin(true); setMessage('#login-message', tr('unauthorized')); } else if (error.status === 422) showErrors(error.body && error.body.errors); else setMessage('#save-message', tr('saveFailed')); });
+    keyRequest.then(() => jsonRequest('/admin/api/settings', 'PUT', settings)).then(next => { $('#gateway-key').value = ''; state = next; original = clone(next); renderSettings(); dirty = false; $('#save-bar').hidden = true; setMessage('#save-message', tr('saved')); }).catch(error => { if (error.status === 401) { showLogin(true); setMessage('#login-message', tr('unauthorized')); } else if (error.status === 422) showErrors(error.body && error.body.errors); else setMessage('#save-message', tr('saveFailed')); });
   }
-  function discard() { state = clone(original); renderSettings(); clearErrors(); setMessage('#save-message', tr('discarded')); }
+  function discard() { state = clone(original); renderSettings(); clearErrors(); dirty = false; $('#save-bar').hidden = true; setMessage('#save-message', tr('discarded')); }
   function testConnection() { setMessage('#connection-result', tr('testing')); jsonRequest('/admin/api/test', 'POST', {}).then(result => { setMessage('#connection-result', result.ok ? tr('connectionOk', { status: result.status, models: result.models }) : tr('connectionFailed', { message: result.error || tr('invalid') })); }).catch(error => setMessage('#connection-result', tr('connectionFailed', { message: error.message }))); }
   function refreshModels() { const button = $('#refresh-models'); button.disabled = true; button.textContent = tr('refreshing'); jsonRequest('/admin/api/models/refresh', 'POST', {}).then(next => { state = next; original = clone(next); renderSettings(); }).catch(error => { if (error.status === 401) showLogin(true); }).finally(() => { button.disabled = false; button.textContent = tr('refresh'); }); }
   function resetBulk() {
@@ -287,7 +299,8 @@
     markDirty();
   }
   document.addEventListener('langchange', () => { if (state) renderSettings(); if (state) renderStatus(); window.i18n.apply(); });
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && state) refreshStatus(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && state && activeTab === 'status') refreshStatus(); });
+  $('#admin-tabs').addEventListener('click', event => { const button = event.target.closest('[data-tab]'); if (button) selectTab(button.dataset.tab); });
   $('#refresh-status').addEventListener('click', refreshStatus);
   $('#login-form').addEventListener('submit', login);
   $('#logout').addEventListener('click', logout);
