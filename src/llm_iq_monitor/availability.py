@@ -2,10 +2,15 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
+import logging
 import math
 import statistics
 import time
 from typing import Any, Callable
+
+
+log = logging.getLogger(__name__)
 
 
 def weighted_ratio(probes: list[dict[str, Any]], start: float, end: float, cap: float) -> tuple[float | None, int]:
@@ -72,34 +77,86 @@ async def probe_once(gateway, model: str, effort: str, timeout: float) -> dict[s
 
 async def probe_loop(settings, conn, gateway_factory: Callable, models_loader: Callable, stop_event: asyncio.Event):
     """Run probes independently of benchmark worker concurrency."""
+    def current_settings():
+        value = settings() if callable(settings) else settings
+        return value
+
+    log.info("probe loop started")
     while not stop_event.is_set():
-        if not settings.availability.enabled:
-            await asyncio.sleep(1)
+        current = current_settings()
+        if not current.availability.enabled:
+            try:
+                await asyncio.wait_for(stop_event.wait(), timeout=1)
+            except asyncio.TimeoutError:
+                pass
             continue
-        models = await models_loader()
-        now = time.time()
-        for model in models:
-            effective = settings.effective(model)
-            if not effective.enabled:
-                continue
-            state_row = conn.execute("SELECT state FROM probe_state WHERE model=? AND effort=?", (model, settings.availability.probe_effort)).fetchone()
-            state = state_row[0] if state_row else "unknown"
-            interval = settings.availability.probe_busy_every_min if state == "busy" else settings.availability.probe_idle_every_min
-            last = conn.execute("SELECT MAX(t) FROM probes WHERE model=? AND effort=?", (model, settings.availability.probe_effort)).fetchone()[0]
-            if last is not None and now - last < interval * 60:
-                continue
-            result = await probe_once(gateway_factory(settings), model, settings.availability.probe_effort, settings.availability.probe_timeout_s)
-            timestamp = time.time()
-            conn.execute("INSERT INTO probes(model,effort,t,ok,status,latency_s,ttft_s,error) VALUES(?,?,?,?,?,?,?,?)",
-                         (model, settings.availability.probe_effort, timestamp, result["ok"], result["status"], result["latency_s"], result["ttft_s"], result["error"]))
-            if timestamp - (conn.execute("SELECT MAX(updated_at) FROM probe_state WHERE model=? AND effort=?", (model, settings.availability.probe_effort)).fetchone()[0] or 0) >= settings.availability.classify_every_min * 60:
-                rows = [dict(row) for row in conn.execute("SELECT t,ok,latency_s FROM probes WHERE model=? AND effort=? AND t>=? ORDER BY t", (model, settings.availability.probe_effort, timestamp - 7 * 86400))]
-                new_state = classify(rows, timestamp, settings.availability.state_window_min * 60, settings.availability.min_samples,
-                                     settings.availability.busy_fail_rate, settings.availability.busy_latency_factor)
-                old = conn.execute("SELECT state,since FROM probe_state WHERE model=? AND effort=?", (model, settings.availability.probe_effort)).fetchone()
-                conn.execute("INSERT OR REPLACE INTO probe_state(model,effort,state,since,updated_at) VALUES(?,?,?,?,?)",
-                             (model, settings.availability.probe_effort, new_state, old[1] if old and old[0] == new_state else timestamp, timestamp))
         try:
-            await asyncio.wait_for(stop_event.wait(), timeout=60)
+            models = await models_loader()
+        except Exception:
+            log.warning("probe model refresh failed", exc_info=True)
+            models = []
+
+        now = time.time()
+        due = []
+        smallest_interval = 30 * 60
+        for model in models:
+            try:
+                effective = current.effective(model)
+                if not effective.enabled:
+                    continue
+                state_row = conn.execute("SELECT state FROM probe_state WHERE model=? AND effort=?", (model, current.availability.probe_effort)).fetchone()
+                state = state_row[0] if state_row else "unknown"
+                interval = current.availability.probe_busy_every_min if state == "busy" else current.availability.probe_idle_every_min
+                smallest_interval = min(smallest_interval, interval * 60)
+                last = conn.execute("SELECT MAX(t) FROM probes WHERE model=? AND effort=?", (model, current.availability.probe_effort)).fetchone()[0]
+                if last is None or now - last >= interval * 60:
+                    due.append(model)
+            except Exception:
+                log.warning("probe scheduling failed for model %s", model, exc_info=True)
+
+        gateway = None
+        if due:
+            try:
+                gateway = gateway_factory(current)
+                if inspect.isawaitable(gateway):
+                    gateway = await gateway
+                for model in due:
+                    try:
+                        result = await probe_once(gateway, model, current.availability.probe_effort,
+                                                  current.availability.probe_timeout_s)
+                        timestamp = time.time()
+                        conn.execute("INSERT INTO probes(model,effort,t,ok,status,latency_s,ttft_s,error) VALUES(?,?,?,?,?,?,?,?)",
+                                     (model, current.availability.probe_effort, timestamp, result["ok"], result["status"],
+                                      result["latency_s"], result["ttft_s"], result["error"]))
+                        updated = conn.execute("SELECT MAX(updated_at) FROM probe_state WHERE model=? AND effort=?",
+                                               (model, current.availability.probe_effort)).fetchone()[0]
+                        if timestamp - (updated or 0) >= current.availability.classify_every_min * 60:
+                            rows = [dict(row) for row in conn.execute(
+                                "SELECT t,ok,latency_s FROM probes WHERE model=? AND effort=? AND t>=? ORDER BY t",
+                                (model, current.availability.probe_effort, timestamp - 7 * 86400))]
+                            new_state = classify(rows, timestamp, current.availability.state_window_min * 60,
+                                                  current.availability.min_samples, current.availability.busy_fail_rate,
+                                                  current.availability.busy_latency_factor)
+                            old = conn.execute("SELECT state,since FROM probe_state WHERE model=? AND effort=?",
+                                               (model, current.availability.probe_effort)).fetchone()
+                            conn.execute("INSERT OR REPLACE INTO probe_state(model,effort,state,since,updated_at) VALUES(?,?,?,?,?)",
+                                         (model, current.availability.probe_effort, new_state,
+                                          old[1] if old and old[0] == new_state else timestamp, timestamp))
+                    except Exception:
+                        log.warning("probe failed for model %s", model, exc_info=True)
+            except Exception:
+                log.warning("probe gateway setup failed", exc_info=True)
+            finally:
+                close = getattr(gateway, "close", None)
+                if close:
+                    try:
+                        value = close()
+                        if inspect.isawaitable(value):
+                            await value
+                    except Exception:
+                        log.warning("probe gateway close failed", exc_info=True)
+        log.debug("probe cycle complete (%d due)", len(due))
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=min(30, smallest_interval))
         except asyncio.TimeoutError:
             pass

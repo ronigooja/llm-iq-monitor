@@ -80,10 +80,9 @@ async def _settings_main(settings=None, *, conn=None, gateway_client=None, stop_
     conn.execute("INSERT INTO availability_runtime(now,interval_s,updated_at) VALUES(?,?,?)",
                  (time.time(), settings.availability.probe_idle_every_min * 60, time.time()))
     adapter = DBAdapter(conn)
-    gateway = settings.gateway
-
     async def fetch_models():
-        return await discovery.list_models(gateway.models_url, gateway.api_key, client=gateway_client)
+        current_gateway = settings.gateway
+        return await discovery.list_models(current_gateway.models_url, current_gateway.api_key, client=gateway_client)
 
     model_list = await fetch_models()
     discovery.sync_models(conn, model_list)
@@ -98,6 +97,11 @@ async def _settings_main(settings=None, *, conn=None, gateway_client=None, stop_
         discovery.sync_models(conn, current_models)
         return current_models
 
+    def default_gateway_factory(current_settings):
+        return runner_module._lazy("llm_iq_monitor.gateway").Gateway(
+            current_settings.gateway.base_url, current_settings.gateway.api_key,
+            timeout=current_settings.availability.probe_timeout_s)
+
     async def run_one(model, *, tick, trigger):
         kwargs = dict(settings=settings, conn=conn, db=adapter, tick_time=tick, trigger=trigger)
         if gateway_factory is not None:
@@ -107,8 +111,9 @@ async def _settings_main(settings=None, *, conn=None, gateway_client=None, stop_
     dispatcher = Dispatcher(settings, db=adapter, runner=run_one, clock=clock or __import__("time").time,
                             models_loader=models_for_tick)
     probe_stop = asyncio.Event()
-    probe_task = asyncio.create_task(probe_loop(settings, conn, gateway_factory or (lambda s: runner_module._lazy("llm_iq_monitor.gateway").Gateway(
-        s.gateway.base_url, s.gateway.api_key, timeout=s.availability.probe_timeout_s)), models_for_tick, probe_stop)) if gateway_factory else None
+    probe_task = asyncio.create_task(probe_loop(lambda: settings, conn,
+                                                gateway_factory or default_gateway_factory,
+                                                models_for_tick, probe_stop))
 
     async def refresh():
         await prices.refresh_prices(conn, settings.prices.url, client=prices_client)
@@ -148,9 +153,8 @@ async def _settings_main(settings=None, *, conn=None, gateway_client=None, stop_
     finally:
         watcher.cancel()
         await asyncio.gather(watcher, return_exceptions=True)
-        if probe_task:
-            probe_stop.set()
-            await asyncio.gather(probe_task, return_exceptions=True)
+        probe_stop.set()
+        await asyncio.gather(probe_task, return_exceptions=True)
         await dispatcher.wait()
         scheduler.shutdown(wait=False)
         if owns_conn and conn is not None:

@@ -15,6 +15,27 @@ def make_settings(cron="0 * * * *", interval=1):
     })
 
 
+class FakeProbeGateway:
+    instances = []
+    failures = 0
+
+    def __init__(self, *args, **kwargs):
+        self.calls = 0
+        self.closed = False
+        type(self).instances.append(self)
+
+    async def chat(self, model, messages, *, effort, max_tokens, timeout):
+        self.calls += 1
+        if type(self).failures:
+            type(self).failures -= 1
+            raise RuntimeError("probe failure")
+        return type("Reply", (), {"reply": "ok", "finish_reason": "stop", "latency_s": 0.01,
+                                   "ttft_s": 0.01})()
+
+    async def close(self):
+        self.closed = True
+
+
 @pytest.mark.asyncio
 async def test_async_main_heartbeat_persists_run_with_fake_gateway(tmp_path, monkeypatch):
     conn = db.connect(tmp_path / "monitor.db")
@@ -84,6 +105,81 @@ async def test_settings_reload_rebuilds_scheduler(monkeypatch, tmp_path):
     assert len(schedulers) == 2 and schedulers[1].started
     stop.set()
     await task
+
+
+@pytest.mark.asyncio
+async def test_production_path_starts_probes_and_survives_probe_failure(monkeypatch, tmp_path):
+    conn = db.connect(tmp_path / "monitor.db")
+    stop = asyncio.Event()
+    settings = make_settings()
+    settings.availability.probe_idle_every_min = 1
+    settings.availability.probe_timeout_s = 1
+    settings.availability.classify_every_min = 1
+    settings.availability.min_samples = 1
+    settings.models.per_model["demo2"] = settings.models.per_model["demo"].model_copy()
+    FakeProbeGateway.instances = []
+    FakeProbeGateway.failures = 1
+    probe_clock = [1_000_000.0]
+
+    def fake_time():
+        probe_clock[0] += 61
+        return probe_clock[0]
+
+    async def models(*args, **kwargs):
+        return ["demo", "demo2"]
+
+    class Scheduler:
+        def start(self): pass
+        def shutdown(self, wait=False): pass
+
+    async def watch(callback):
+        await stop.wait()
+
+    monkeypatch.setattr("llm_iq_monitor.discovery.list_models", models)
+    monkeypatch.setattr("llm_iq_monitor.settings.watch_settings", watch)
+    monkeypatch.setattr("llm_iq_monitor.gateway.Gateway", FakeProbeGateway)
+    monkeypatch.setattr("llm_iq_monitor.availability.time.time", fake_time)
+    task = asyncio.create_task(runner_main._settings_main(
+        settings=settings, conn=conn, stop_event=stop,
+        scheduler_factory=lambda s, **kw: Scheduler()))
+    for _ in range(100):
+        if conn.execute("SELECT COUNT(*) FROM probes").fetchone()[0] >= 2:
+            break
+        await asyncio.sleep(0.01)
+    stop.set()
+    await task
+    rows = conn.execute("SELECT ok FROM probes ORDER BY t").fetchall()
+    assert [row[0] for row in rows] == [0, 1]
+    assert FakeProbeGateway.instances and all(item.closed for item in FakeProbeGateway.instances)
+
+
+@pytest.mark.asyncio
+async def test_production_path_disabled_availability_writes_no_probes(monkeypatch, tmp_path):
+    conn = db.connect(tmp_path / "monitor.db")
+    stop = asyncio.Event()
+    settings = make_settings()
+    settings.availability.enabled = False
+
+    async def models(*args, **kwargs):
+        return ["demo"]
+
+    class Scheduler:
+        def start(self): pass
+        def shutdown(self, wait=False): pass
+
+    async def watch(callback):
+        await stop.wait()
+
+    monkeypatch.setattr("llm_iq_monitor.discovery.list_models", models)
+    monkeypatch.setattr("llm_iq_monitor.settings.watch_settings", watch)
+    monkeypatch.setattr("llm_iq_monitor.gateway.Gateway", FakeProbeGateway)
+    task = asyncio.create_task(runner_main._settings_main(
+        settings=settings, conn=conn, stop_event=stop,
+        scheduler_factory=lambda s, **kw: Scheduler()))
+    await asyncio.sleep(0.05)
+    stop.set()
+    await task
+    assert conn.execute("SELECT COUNT(*) FROM probes").fetchone()[0] == 0
 
 
 def test_manual_path_passes_tick_as_tick_time(monkeypatch):
