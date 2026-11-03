@@ -50,3 +50,23 @@ def test_ui_sections_use_separate_kind_and_subject_i18n_elements():
     assert "tr(`ui.${section.promptKey}`)" in script
     assert "tr(`ui.subject.${section.promptKey}`)" in script
     assert "const subject =" not in script
+
+
+def test_ui_card_prefers_newest_valid_sample():
+    rows = [
+        {"sample_id": 1, "model": "m", "effort": "low", "prompt_key": "classic", "prompt": "p", "svg": "<svg old/>", "valid": 1, "created_at": 10},
+        {"sample_id": 2, "model": "m", "effort": "low", "prompt_key": "classic", "prompt": "p", "svg": None, "valid": 0, "created_at": 20},
+        {"sample_id": 3, "model": "n", "effort": "low", "prompt_key": "classic", "prompt": "p", "svg": None, "valid": 0, "created_at": 5},
+        {"sample_id": 4, "model": "n", "effort": "low", "prompt_key": "classic", "prompt": "p", "svg": None, "valid": 0, "created_at": 7},
+    ]
+    harness = f"""
+const fs = require('fs'), vm = require('vm');
+const context = {{ window: {{}}, document: undefined }};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(ROOT / 'web/ui.js'))}, 'utf8'), context);
+const cards = context.window.reduceSamples({json.dumps(rows)});
+const byModel = Object.fromEntries(cards.map(c => [c.model, c.sample_id]));
+console.log(JSON.stringify(byModel));
+"""
+    result = subprocess.run(["node", "-e", harness], cwd=ROOT, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == {"m": 1, "n": 4}

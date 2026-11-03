@@ -9,7 +9,8 @@ function reduceSamples(rows) {
   rows.forEach(row => {
     const key = `${row.model}\0${row.effort}\0${row.prompt_key}`;
     const current = targets.get(key);
-    if (!current || newestSample([current, row]) === row) targets.set(key, row);
+    const usable = sample => Boolean(sample.svg && sample.valid);
+    if (!current || (usable(row) && !usable(current)) || (usable(row) === usable(current) && newestSample([current, row]) === row)) targets.set(key, row);
   });
   return [...targets.values()].sort((a, b) => a.prompt_key === b.prompt_key
     ? a.model.localeCompare(b.model) || (UI_EFFORT_ORDER[a.effort] ?? 99) - (UI_EFFORT_ORDER[b.effort] ?? 99)
