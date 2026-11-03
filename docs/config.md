@@ -36,6 +36,10 @@ Precedence, highest first: environment variable `GATEWAY_API_KEY` (key only) →
 | `ui.sample_max_age_days` | 7 | A target gets a new UI sample for a prompt once the previous one is rated or this old ([benchmark.md](benchmark.md#ui-samples)) |
 | `retention.reply_days` | 14 | Days to keep raw replies ([data-model.md](data-model.md#retention)) |
 
+## Availability settings
+
+`availability.enabled` (default `true`) runs independent probes. `availability.probe_effort` defaults to `low`; timeout is 30 seconds; idle/unknown and busy intervals are 30 and 10 minutes; classification runs every 10 minutes over 60 minutes. Busy thresholds are failure rate 0.5 or latency factor 3.0. Current availability uses a 180-minute window, requires 3 samples, and probes are retained 30 days. `schedule.defer_when_busy` defaults to `true`.
+
 ## Per-model settings
 
 Stored as `[models."<model id>"]` tables in `settings.toml`. Each key except `enabled` is optional and falls back to the default named below.

@@ -29,6 +29,7 @@ class Dispatcher:
         self.active: set[str] = set()
         self.last_trigger: dict[str, float] = {}
         self.previous_trigger: dict[str, float | None] = {}
+        self.deferred: set[str] = set()
         self._workers: list[asyncio.Task] = []
 
     async def tick(self, tick_time: float | None = None, models: list[str] | None = None):
@@ -58,7 +59,15 @@ class Dispatcher:
             interval = float(_get(effective, "interval_h", 1)) * 3600
             if previous is not None and _minute(tick) - _minute(previous) < interval:
                 continue
+            if (trigger_busy := getattr(self.db, "model_busy", None)) is not None and _get(getattr(self.settings, "schedule", None), "defer_when_busy", True):
+                busy = trigger_busy(model, "")
+                if inspect.isawaitable(busy):
+                    busy = await busy
+                if busy:
+                    self.deferred.add(model)
+                    continue
             self.last_trigger[model] = tick
+            self.deferred.discard(model)
             self.previous_trigger[model] = previous
             await self._set_trigger(model, tick)
             self.queue.append((model, tick, "schedule"))

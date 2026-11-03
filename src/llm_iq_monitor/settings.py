@@ -61,6 +61,7 @@ class Gateway(BaseModel):
 
 class Schedule(BaseModel):
     heartbeat_cron: str = "0 * * * *"
+    defer_when_busy: bool = True
 
     @field_validator("heartbeat_cron")
     @classmethod
@@ -162,6 +163,28 @@ class Retention(BaseModel):
     reply_days: int = Field(default=14, ge=0)
 
 
+class Availability(BaseModel):
+    enabled: bool = True
+    probe_effort: str = "low"
+    probe_timeout_s: int = Field(default=30, ge=1)
+    probe_idle_every_min: int = Field(default=30, ge=1)
+    probe_busy_every_min: int = Field(default=10, ge=1)
+    classify_every_min: int = Field(default=10, ge=1)
+    state_window_min: int = Field(default=60, ge=1)
+    busy_fail_rate: float = Field(default=0.5, ge=0, le=1)
+    busy_latency_factor: float = Field(default=3.0, ge=1)
+    window_min: int = Field(default=180, ge=1)
+    min_samples: int = Field(default=3, ge=1)
+    retention_days: int = Field(default=30, ge=1)
+
+    @field_validator("probe_effort")
+    @classmethod
+    def valid_probe_effort(cls, value: str) -> str:
+        if value not in EFFORTS:
+            raise ValueError(f"probe_effort must be one of {EFFORTS}")
+        return value
+
+
 class UI(BaseModel):
     sample_max_age_days: int = Field(default=7, ge=1)
 
@@ -187,6 +210,7 @@ class Settings(BaseModel):
     run: Run = Field(default_factory=Run)
     net: Net = Field(default_factory=Net)
     retention: Retention = Field(default_factory=Retention)
+    availability: Availability = Field(default_factory=Availability)
     ui: UI = Field(default_factory=UI)
     judge: Judge = Field(default_factory=Judge)
 

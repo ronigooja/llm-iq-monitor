@@ -16,6 +16,9 @@ databases:
       run_dims: {allow: false}
       results: {allow: false}
       ui_samples: {allow: false}
+      probes: {allow: false}
+      probe_state: {allow: false}
+      availability_config: {allow: false}
     queries:
       ranking:
         allow: true
@@ -25,7 +28,7 @@ databases:
                    r.dataset_version, r.status,
                     d.dim, d.score, d.quality, d.latency_p50, d.latency_p95,
                    d.ttft_p50, d.time_total, d.n, d.n_err, d.cost_usd,
-                   d.cost_per_correct, d.availability,
+                    d.cost_per_correct,
                    ROW_NUMBER() OVER (
                      PARTITION BY r.model, r.effort
                      ORDER BY r.finished_at DESC, r.id DESC
@@ -62,7 +65,7 @@ databases:
            )
            SELECT CASE WHEN effective_score IS NULL THEN NULL ELSE score_rank END AS rank,
                   model, effort, run_id, finished_at, dataset_version, status,
-                   availability, effective_score AS score, quality, latency_p50, latency_p95,
+                    effective_score AS score, quality, latency_p50, latency_p95,
                  ttft_p50, time_total, n, n_err, cost_usd, cost_per_correct
            FROM ranked
            ORDER BY CASE WHEN effective_score IS NULL THEN 1 ELSE 0 END,
@@ -96,8 +99,13 @@ databases:
               COALESCE(:exclude_instruction, '') AS exclude_instruction_text,
               COALESCE(:exclude_write_zh, '') AS exclude_write_zh_text,
               COALESCE(:exclude_write_en, '') AS exclude_write_en_text,
-              COALESCE(:exclude_ui, '') AS exclude_ui_text
-          ), exclude_parts(keyword, rest) AS (
+              COALESCE(:exclude_ui, '') AS exclude_ui_text,
+              CASE WHEN trim(COALESCE(:min_availability, '')) <> ''
+                    AND trim(:min_availability) NOT GLOB '*[^0-9.]*'
+                    AND trim(:min_availability) GLOB '*[0-9]*'
+                    AND length(trim(:min_availability)) - length(replace(trim(:min_availability), '.', '')) <= 1
+                   THEN CAST(trim(:min_availability) AS REAL) ELSE 0.9 END AS min_availability
+           ), exclude_parts(keyword, rest) AS (
             SELECT trim(substr(exclude_text, 1, instr(exclude_text || ',', ',') - 1)),
                    substr(exclude_text || ',', instr(exclude_text || ',', ',') + 1)
             FROM input
@@ -153,8 +161,8 @@ databases:
             SELECT trim(substr(rest, 1, instr(rest, ',') - 1)), substr(rest, instr(rest, ',') + 1)
             FROM exclude_ui_parts
             WHERE rest <> ''
-          ),
-          dimensions AS (
+           ),
+           dimensions AS (
             SELECT 'reasoning' AS dim, 'Reasoning' AS name, 'Multi-step reasoning, avoiding common-sense traps, reading tables and figures, not making things up' AS use_when
             UNION ALL SELECT 'code', 'Code', 'Writing a function, reading code, fixing a bug'
             UNION ALL SELECT 'instruction', 'Instruction following', 'Following a strict output format, extracting fields into JSON'
@@ -165,7 +173,7 @@ databases:
             SELECT r.id AS run_id, r.model, r.effort, r.finished_at,
                    r.dataset_version, r.status,
                    d.dim, d.score, d.quality, d.latency_p50, d.cost_per_correct,
-                   d.availability,
+                    
                    ROW_NUMBER() OVER (
                      PARTITION BY r.model, r.effort, d.dim
                      ORDER BY r.finished_at DESC, r.id DESC
@@ -191,14 +199,19 @@ databases:
             GROUP BY model, effort
           ), candidates AS (
             SELECT l.run_id, l.model, l.effort, l.finished_at, l.dataset_version,
-                   l.dim, l.quality, l.latency_p50, l.cost_per_correct, l.availability,
+                    l.dim, l.quality, l.latency_p50, l.cost_per_correct,
                    CASE WHEN l.dim = 'ui' THEN us.score ELSE l.score END AS score
             FROM latest l LEFT JOIN ui_scores us ON us.model = l.model AND us.effort = l.effort
             WHERE l.rn = 1
           ), filtered AS (
-            SELECT c.*
-            FROM candidates c
-            WHERE c.score IS NOT NULL
+             SELECT c.*
+             FROM candidates c CROSS JOIN input
+             WHERE c.score IS NOT NULL
+             AND (input.min_availability = 0 OR NOT EXISTS (
+                 SELECT 1 FROM probes a WHERE a.model=c.model AND a.effort=c.effort
+                 GROUP BY a.model,a.effort HAVING COUNT(*) >= COALESCE((SELECT min_samples FROM availability_config), 3)
+                   AND AVG(a.ok) < input.min_availability
+               ))
               AND NOT EXISTS (
                SELECT 1 FROM exclude_parts e
                  WHERE e.keyword <> '' AND instr(lower(c.model), lower(e.keyword)) > 0
@@ -258,13 +271,73 @@ databases:
             WHEN 'reasoning' THEN 1 WHEN 'code' THEN 2 WHEN 'instruction' THEN 3
             WHEN 'write_zh' THEN 4 WHEN 'write_en' THEN 5 WHEN 'ui' THEN 6
           END
-        params: [score_tolerance, price_tolerance, exclude, exclude_reasoning, exclude_code, exclude_instruction, exclude_write_zh, exclude_write_en, exclude_ui]
+        params: [score_tolerance, price_tolerance, min_availability, exclude, exclude_reasoning, exclude_code, exclude_instruction, exclude_write_zh, exclude_write_en, exclude_ui]
+      availability_now:
+        allow: true
+        sql: |
+          WITH points AS (
+            SELECT p.model, p.effort, p.t, p.ok, p.latency_s,
+                   MAX(p.t, strftime('%s','now') - c.window_min * 60.0) AS left_t,
+                   MIN(COALESCE(LEAD(p.t) OVER (PARTITION BY p.model,p.effort ORDER BY p.t), strftime('%s','now')), strftime('%s','now')) AS right_t
+            FROM probes p CROSS JOIN availability_config c
+            WHERE p.t >= strftime('%s','now') - c.window_min * 60.0
+          ),
+          weighted AS (
+            SELECT model, effort, COUNT(*) AS samples,
+                   SUM((right_t-left_t)*ok) / NULLIF(SUM(right_t-left_t), 0) AS availability,
+                   MAX(t) AS last_probe_at
+            FROM points GROUP BY model, effort
+          ),
+          successful AS (
+            SELECT model, effort, latency_s,
+                   ROW_NUMBER() OVER (PARTITION BY model,effort ORDER BY latency_s) AS rn,
+                   COUNT(*) OVER (PARTITION BY model,effort) AS n
+            FROM points WHERE ok=1 AND latency_s IS NOT NULL
+          ), medians AS (
+            SELECT model, effort, AVG(latency_s) AS latency_p50
+            FROM successful WHERE rn IN ((n+1)/2, (n+2)/2) GROUP BY model, effort
+          )
+          SELECT w.model, w.effort,
+                 CASE WHEN w.samples >= (SELECT min_samples FROM availability_config) THEN w.availability END AS availability,
+                 w.samples, COALESCE(s.state, 'unknown') AS state, m.latency_p50, w.last_probe_at
+          FROM weighted w LEFT JOIN probe_state s ON s.model=w.model AND s.effort=w.effort
+          LEFT JOIN medians m ON m.model=w.model AND m.effort=w.effort
+          ORDER BY w.model, CASE w.effort WHEN 'low' THEN 1 WHEN 'medium' THEN 2 WHEN 'high' THEN 3 END
+        params: []
+      availability_history:
+        allow: true
+        sql: |
+          WITH input AS (
+            SELECT CASE WHEN CAST(:days AS INTEGER) BETWEEN 1 AND 30 THEN CAST(:days AS INTEGER) ELSE 1 END AS days
+          ), bounds AS (
+            SELECT strftime('%s','now') - days*86400 AS start_t, days FROM input
+          ), buckets AS (
+            SELECT start_t + (n * CASE WHEN days=1 THEN 3600 ELSE 86400 END) AS bucket_start,
+                   CASE WHEN days=1 THEN 3600 ELSE 86400 END AS width
+            FROM bounds JOIN (WITH RECURSIVE nums(n) AS (SELECT 0 UNION ALL SELECT n+1 FROM nums WHERE n<719) SELECT n FROM nums)
+            ON n < CASE WHEN days=1 THEN 24 ELSE days END
+          ), targets AS (
+            SELECT DISTINCT model, effort FROM probes WHERE (:model='' OR model=:model) AND (:effort='' OR effort=:effort)
+          ), points AS (
+            SELECT p.model,p.effort,p.t,p.ok,
+                   COALESCE(LEAD(p.t) OVER (PARTITION BY p.model,p.effort ORDER BY p.t), strftime('%s','now')) AS next_t
+            FROM probes p WHERE (:model='' OR p.model=:model) AND (:effort='' OR p.effort=:effort)
+          )
+          SELECT t.model,t.effort,b.bucket_start,
+                 CASE WHEN SUM(MAX(0, MIN(b.bucket_start+b.width, p.next_t) - MAX(b.bucket_start,p.t))) > 0
+                      THEN SUM(MAX(0, MIN(b.bucket_start+b.width, p.next_t) - MAX(b.bucket_start,p.t))*p.ok) /
+                           SUM(MAX(0, MIN(b.bucket_start+b.width, p.next_t) - MAX(b.bucket_start,p.t))) END AS availability,
+                 SUM(CASE WHEN p.t >= b.bucket_start AND p.t < b.bucket_start+b.width THEN 1 ELSE 0 END) AS samples
+          FROM targets t CROSS JOIN buckets b LEFT JOIN points p ON p.model=t.model AND p.effort=t.effort
+             AND p.next_t > b.bucket_start AND p.t < b.bucket_start+b.width
+          GROUP BY t.model,t.effort,b.bucket_start ORDER BY t.model,t.effort,b.bucket_start
+        params: [model, effort, days]
       series:
         allow: true
         sql: |
            SELECT r.finished_at AS t, r.id AS run_id, r.dataset_version,
                   d.score, d.quality, d.latency_p50, d.latency_p95, d.ttft_p50,
-                 d.time_total, d.availability,
+                  d.time_total,
                  d.cost_per_correct
            FROM runs AS r JOIN run_dims AS d ON d.run_id = r.id
            WHERE r.model = :model AND r.effort = :effort AND d.dim = :dim
@@ -277,7 +350,7 @@ databases:
            UNION ALL
            SELECT u.rated_at AS t, u.run_id, r.dataset_version,
                   u.stars * 10 AS score, NULL AS quality, d.latency_p50,
-                  d.latency_p95, d.ttft_p50, d.time_total, d.availability,
+                   d.latency_p95, d.ttft_p50, d.time_total,
                   d.cost_per_correct
            FROM ui_samples u JOIN runs r ON r.id = u.run_id
              JOIN run_dims d ON d.run_id = r.id AND d.dim = 'ui'

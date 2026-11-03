@@ -152,6 +152,46 @@ def _state_payload() -> dict[str, Any]:
     }
 
 
+def _status_payload() -> dict[str, Any]:
+    settings = load_settings()
+    conn = connect()
+    now = time.time()
+    try:
+        models = []
+        for model in sorted(settings.models.per_model):
+            effective = settings.effective(model)
+            if not effective.enabled:
+                continue
+            for effort in sorted(effective.efforts, key=EFFORTS.index):
+                running = conn.execute("SELECT id,started_at,dims FROM runs WHERE model=? AND effort=? AND status='running' ORDER BY id DESC LIMIT 1", (model, effort)).fetchone()
+                last = conn.execute("SELECT id,status,finished_at FROM runs WHERE model=? AND effort=? AND status!='running' ORDER BY finished_at DESC,id DESC LIMIT 1", (model, effort)).fetchone()
+                probe = conn.execute("SELECT p.*,s.state FROM probes p LEFT JOIN probe_state s ON s.model=p.model AND s.effort=p.effort WHERE p.model=? AND p.effort=? ORDER BY p.t DESC LIMIT 1", (model, effort)).fetchone()
+                cfg = conn.execute("SELECT window_min,min_samples FROM availability_config LIMIT 1").fetchone() or (settings.availability.window_min, settings.availability.min_samples)
+                since = now - cfg[0] * 60
+                samples = conn.execute("SELECT COUNT(*) FROM probes WHERE model=? AND effort=? AND t>=?", (model, effort, since)).fetchone()[0]
+                ok = conn.execute("SELECT SUM(ok),COUNT(*) FROM probes WHERE model=? AND effort=? AND t>=?", (model, effort, since)).fetchone()
+                availability = (ok[0] / ok[1]) if ok[1] >= cfg[1] and ok[1] else None
+                models.append({"model": model, "effort": effort,
+                    "run": None if not running else {"state":"running", "question_index": conn.execute("SELECT COUNT(*) FROM results WHERE run_id=?", (running[0],)).fetchone()[0], "question_total": sum(__import__('llm_iq_monitor.settings', fromlist=['DIM_COUNTS']).DIM_COUNTS[d] for d in json.loads(running[2])), "dim": None, "run_id": running[0], "started_at": running[1]},
+                    "last_run": None if not last else {"run_id":last[0],"status":last[1],"finished_at":last[2],"score_avg":None},
+                    "next_due_at": None, "deferred": False,
+                    "probe": None if not probe else {"state": probe["state"] or "unknown", "last_probe_at":probe["t"],"last_ok":bool(probe["ok"]),"last_latency_s":probe["latency_s"],"availability":availability,"samples":samples}})
+    finally:
+        conn.close()
+    return {"now": now, "runner": {"running": True}, "models": models}
+
+
+async def status(request: Request) -> Response:
+    error = _auth_error(request, request.app.state.admin)
+    if error is not None:
+        return error
+    try:
+        return _json(_status_payload())
+    except Exception:
+        log.exception("admin status failed")
+        return _json({"error": "unable to load status"}, 500)
+
+
 def _validation_errors(exc: ValidationError) -> list[dict[str, str]]:
     result = []
     for item in exc.errors():
@@ -331,6 +371,7 @@ def create_app(*, token: str | None = None, clock: Callable[[], float] = time.ti
         Route("/admin/api/login", login, methods=["POST"]),
         Route("/admin/api/logout", logout, methods=["POST"]),
         Route("/admin/api/state", state, methods=["GET"]),
+        Route("/admin/api/status", status, methods=["GET"]),
         Route("/admin/api/settings", update_settings, methods=["PUT"]),
         Route("/admin/api/key", update_key, methods=["PUT"]),
         Route("/admin/api/test", connection_test, methods=["POST"]),

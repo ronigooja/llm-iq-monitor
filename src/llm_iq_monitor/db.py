@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 5
 UI_HISTORY = 7
 
 
@@ -48,13 +48,13 @@ def migrate(conn: sqlite3.Connection):
           trigger TEXT NOT NULL, dims TEXT NOT NULL, params TEXT NOT NULL,
           price_in REAL, price_out REAL, price_fetched_at REAL,
           started_at REAL, finished_at REAL, status TEXT NOT NULL,
-          availability REAL, duration_s REAL,
+           duration_s REAL,
            cost_usd REAL, rtt_ms REAL,
            judge_model TEXT, judge_price_in REAL, judge_price_out REAL
         );
         CREATE TABLE IF NOT EXISTS run_dims (
           run_id INTEGER NOT NULL REFERENCES runs(id), dim TEXT NOT NULL,
-          score REAL, n INTEGER, n_err INTEGER, availability REAL,
+           score REAL, n INTEGER, n_err INTEGER,
           latency_p50 REAL, latency_p95 REAL, ttft_p50 REAL,
           time_total REAL, in_tok INTEGER, out_tok INTEGER,
            cost_usd REAL, cost_per_correct REAL,
@@ -112,6 +112,50 @@ def migrate(conn: sqlite3.Connection):
                 conn.execute(f"ALTER TABLE results ADD COLUMN {name} {kind}")
         conn.execute("PRAGMA user_version=3")
         version = 3
+    if version < 4:
+        conn.executescript("""
+        CREATE TABLE IF NOT EXISTS probes (
+          id INTEGER PRIMARY KEY, model TEXT NOT NULL, effort TEXT NOT NULL,
+          t REAL NOT NULL, ok INTEGER NOT NULL, status INTEGER NULL,
+          latency_s REAL NULL, ttft_s REAL NULL, error TEXT NULL
+        );
+        CREATE INDEX IF NOT EXISTS probes_model_effort_t ON probes(model, effort, t);
+        CREATE TABLE IF NOT EXISTS probe_state (
+          model TEXT NOT NULL, effort TEXT NOT NULL, state TEXT NOT NULL CHECK(state IN ('busy','idle','unknown')),
+          since REAL NOT NULL, updated_at REAL NOT NULL, PRIMARY KEY(model, effort)
+        );
+        CREATE TABLE IF NOT EXISTS availability_config(window_min INTEGER NOT NULL, min_samples INTEGER NOT NULL, updated_at REAL NOT NULL);
+        """)
+        conn.execute("PRAGMA user_version=4")
+        version = 4
+    if version < 5:
+        # SQLite cannot drop columns on all supported versions; rebuild the two affected tables.
+        conn.executescript("""
+        CREATE TABLE runs_new (
+          id INTEGER PRIMARY KEY, model TEXT NOT NULL, effort TEXT NOT NULL, seed TEXT NOT NULL,
+          dataset_version TEXT NOT NULL, trigger TEXT NOT NULL, dims TEXT NOT NULL, params TEXT NOT NULL,
+          price_in REAL, price_out REAL, price_fetched_at REAL, started_at REAL, finished_at REAL,
+          status TEXT NOT NULL, duration_s REAL, cost_usd REAL, rtt_ms REAL,
+          judge_model TEXT, judge_price_in REAL, judge_price_out REAL
+        );
+        INSERT INTO runs_new SELECT id,model,effort,seed,dataset_version,trigger,dims,params,price_in,price_out,price_fetched_at,started_at,finished_at,status,duration_s,cost_usd,rtt_ms,judge_model,judge_price_in,judge_price_out FROM runs;
+        DROP TABLE runs;
+        ALTER TABLE runs_new RENAME TO runs;
+        CREATE TABLE run_dims_new (
+          run_id INTEGER NOT NULL, dim TEXT NOT NULL, score REAL, n INTEGER, n_err INTEGER,
+          latency_p50 REAL, latency_p95 REAL, ttft_p50 REAL, time_total REAL, in_tok INTEGER,
+          out_tok INTEGER, cost_usd REAL, cost_per_correct REAL, quality REAL, judge_cost_usd REAL,
+          PRIMARY KEY (run_id, dim)
+        );
+        INSERT INTO run_dims_new SELECT run_id,dim,score,n,n_err,latency_p50,latency_p95,ttft_p50,time_total,in_tok,out_tok,cost_usd,cost_per_correct,quality,judge_cost_usd FROM run_dims;
+        DROP TABLE run_dims;
+        ALTER TABLE run_dims_new RENAME TO run_dims;
+        CREATE INDEX IF NOT EXISTS runs_model_effort_started ON runs(model, effort, started_at);
+        CREATE INDEX IF NOT EXISTS runs_status_finished ON runs(status, finished_at);
+        CREATE INDEX IF NOT EXISTS results_run ON results(run_id);
+        """)
+        conn.execute("PRAGMA user_version=5")
+        version = 5
     return version
 
 
@@ -195,6 +239,10 @@ def finish_run(conn, run_id, **fields):
 def cleanup_replies(conn, days):
     cutoff = time.time() - days * 86400
     conn.execute("UPDATE results SET reply=NULL WHERE reply IS NOT NULL AND run_id IN (SELECT id FROM runs WHERE finished_at < ?)", (cutoff,))
+
+
+def cleanup_probes(conn, days=30):
+    conn.execute("DELETE FROM probes WHERE t < ?", (time.time() - days * 86400,))
 
 
 def backup(conn, directory):

@@ -10,11 +10,13 @@ import inspect
 import logging
 import signal
 import sys
+import time
 from pathlib import Path
 
 from . import db as db_module
 from . import discovery, prices, runner as runner_module
 from .dispatcher import Dispatcher
+from .availability import probe_loop
 from .scheduler import build_scheduler, rebuild_scheduler
 
 log = logging.getLogger(__name__)
@@ -41,6 +43,13 @@ class DBAdapter:
         row = self.conn.execute("SELECT status FROM runs WHERE id=?", (run_id,)).fetchone()
         return row[0] if row else None
 
+    def model_busy(self, model, effort=""):
+        row = self.conn.execute(
+            "SELECT 1 FROM probe_state WHERE model=? AND (?='' OR effort=?) AND state='busy' LIMIT 1",
+            (model, effort, effort),
+        ).fetchone()
+        return bool(row)
+
     def __getattr__(self, name):
         function = getattr(db_module, name)
         def call(*args, **kwargs):
@@ -64,6 +73,9 @@ async def _settings_main(settings=None, *, conn=None, gateway_client=None, stop_
     conn = conn or db_module.connect()
     db_module.migrate(conn)
     db_module.mark_running_aborted(conn)
+    conn.execute("DELETE FROM availability_config")
+    conn.execute("INSERT INTO availability_config(window_min,min_samples,updated_at) VALUES(?,?,?)",
+                 (settings.availability.window_min, settings.availability.min_samples, time.time()))
     adapter = DBAdapter(conn)
     gateway = settings.gateway
 
@@ -91,12 +103,16 @@ async def _settings_main(settings=None, *, conn=None, gateway_client=None, stop_
 
     dispatcher = Dispatcher(settings, db=adapter, runner=run_one, clock=clock or __import__("time").time,
                             models_loader=models_for_tick)
+    probe_stop = asyncio.Event()
+    probe_task = asyncio.create_task(probe_loop(settings, conn, gateway_factory or (lambda s: runner_module._lazy("llm_iq_monitor.gateway").Gateway(
+        s.gateway.base_url, s.gateway.api_key, timeout=s.availability.probe_timeout_s)), models_for_tick, probe_stop)) if gateway_factory else None
 
     async def refresh():
         await prices.refresh_prices(conn, settings.prices.url, client=prices_client)
 
     async def maintenance():
         db_module.cleanup_replies(conn, settings.retention.reply_days)
+        db_module.cleanup_probes(conn, settings.availability.retention_days)
         db_module.backup(conn, Path(__import__("os").environ.get("LLM_IQ_DATA_DIR", ".")) / "backups")
 
     scheduler = scheduler_factory(settings, heartbeat=dispatcher.tick, refresh_prices=refresh,
@@ -108,6 +124,9 @@ async def _settings_main(settings=None, *, conn=None, gateway_client=None, stop_
         nonlocal settings, scheduler
         old = settings
         dispatcher.settings = settings = new_settings
+        conn.execute("DELETE FROM availability_config")
+        conn.execute("INSERT INTO availability_config(window_min,min_samples,updated_at) VALUES(?,?,?)",
+                     (settings.availability.window_min, settings.availability.min_samples, time.time()))
         if old.schedule.heartbeat_cron != new_settings.schedule.heartbeat_cron:
             scheduler = rebuild_scheduler(scheduler, new_settings, heartbeat=dispatcher.tick,
                                           refresh_prices=refresh, maintenance=maintenance)
@@ -123,6 +142,9 @@ async def _settings_main(settings=None, *, conn=None, gateway_client=None, stop_
     finally:
         watcher.cancel()
         await asyncio.gather(watcher, return_exceptions=True)
+        if probe_task:
+            probe_stop.set()
+            await asyncio.gather(probe_task, return_exceptions=True)
         await dispatcher.wait()
         scheduler.shutdown(wait=False)
         if owns_conn and conn is not None:

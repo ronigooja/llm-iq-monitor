@@ -16,8 +16,9 @@ Public, read-only, JSON, no authentication. Provided by [Datasette](https://data
 
 | Name | Parameters | Returns |
 |---|---|---|
-| `best` | `score_tolerance`, `price_tolerance`, `exclude`, `exclude_reasoning`, `exclude_code`, `exclude_instruction`, `exclude_write_zh`, `exclude_write_en`, `exclude_ui` (all optional) | Exactly one row for each of the six dimensions, across all efforts; score tolerance keeps near-top scores, price tolerance keeps near-cheapest scored candidates, then the lowest non-null latency wins. `exclude` removes matching model IDs from every dimension; each `exclude_<dimension>` removes matching model IDs only from that dimension. Values are comma-separated, trimmed, case-insensitive substrings; empty pieces are ignored. `model` and `effort` are null when no eligible candidate remains |
-| `ranking` | `dim` (required: a dimension key, including `write_zh` and `write_en`), `effort` (optional) | Ranking for one capability: the latest finished run of each model × effort that ran the dimension, ordered by score descending, then `latency_p50` ascending, null scores last |
+| `best` | `score_tolerance`, `price_tolerance`, `min_availability`, `exclude`, `exclude_reasoning`, `exclude_code`, `exclude_instruction`, `exclude_write_zh`, `exclude_write_en`, `exclude_ui` (all optional) | Six routing rows. `min_availability` defaults to 0.9; 0 disables filtering. Null availability does not filter a candidate. |
+| `ranking` | `dim` (required), `effort` (optional) | Ranking for one capability |
+| `availability_now` | none | Current weighted probe availability per model × effort |
 | `series` | `model`, `effort`, `dim` (all required), `from`, `to`, `dataset_version` (optional) | History points, time ascending, at most 2000 rows |
 | `models` | none | One row per model × effort that has finished runs |
 | `dimensions` | none | The dimensions with a one-line "use it when" description, in display order ([benchmark.md](benchmark.md#dimensions)) |
@@ -26,7 +27,8 @@ Public, read-only, JSON, no authentication. Provided by [Datasette](https://data
 | `health` | none | Liveness of the pipeline |
 
 Columns:
-- `ranking`: `rank` (null when the score is null), `model`, `effort`, `run_id`, `finished_at`, `dataset_version`, `status`, `availability`, `score`, `quality`, `latency_p50`, `latency_p95`, `ttft_p50`, `time_total`, `n`, `n_err`, `cost_usd`, `cost_per_correct`. `quality` is judged, writing dimensions only, null elsewhere ([benchmark.md](benchmark.md#writing-and-judge)); it does not affect `rank`. `availability` is that dimension's `(n − n_err) / n`.
+- `ranking`: `rank`, `model`, `effort`, `run_id`, `finished_at`, `dataset_version`, `status`, `score`, `quality`, `latency_p50`, `latency_p95`, `ttft_p50`, `time_total`, `n`, `n_err`, `cost_usd`, `cost_per_correct`.
+- `availability_now`: `model`, `effort`, `availability`, `samples`, `state`, `latency_p50`, `last_probe_at`.
 - `best`: `dim`, `use_when`, `model`, `effort`. Selection uses score, derived `cost_per_correct` and `latency_p50`, but only these four routing fields are exposed.
 - `series`: `t`, `run_id`, `dataset_version`, `score`, `quality`, `latency_p50`, `latency_p95`, `ttft_p50`, `time_total`, `availability`, `cost_per_correct`.
 - `models`: `model`, `effort`, `active`, `dims`, `last_finished_at`, `last_status`.

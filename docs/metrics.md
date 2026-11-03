@@ -19,6 +19,10 @@ Single source for what is recorded and how it is aggregated. Table columns: [dat
 
 Times marked raw are stored as measured and adjusted at aggregation ([Network round trip](#network-round-trip)).
 
+## Availability (probes)
+
+Availability is a probe success ratio, not a dimension. Each enabled model and selected effort gets one non-retried tiny chat request. Non-empty replies before the probe timeout succeed; errors, empty and truncated replies fail. Probes are independent of benchmark runs. Coverage extends to the next probe, capped at twice the interval; the last probe extends to now with that cap. Availability is weighted successful coverage divided by total coverage, split at bucket edges; empty buckets are null. Current availability uses `availability.window_min` and is null below `availability.min_samples`. BUSY uses the state window's failure rate or median successful latency versus the seven-day successful-latency 20th percentile; below the minimum sample count it is UNKNOWN, otherwise IDLE. State affects probe frequency, deferral and shading, never `best`.
+
 ## Errors
 
 | Class | Meaning |

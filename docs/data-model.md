@@ -78,7 +78,7 @@ ui_samples(
   created_at REAL NOT NULL
 );
 
-Indexes: `ui_samples(run_id)`, `ui_samples(stars, created_at)`, `runs(model, effort, started_at)`, `runs(status, finished_at)`, `results(run_id)`.
+Probe tables are `probes`, `probe_state` and `availability_config`; the probe index is `(model, effort, t)`. Other indexes are `ui_samples(run_id)`, `ui_samples(stars, created_at)`, `runs(model, effort, started_at)`, `runs(status, finished_at)`, `results(run_id)`.
 
 `prices`, `ui_samples` (only the public queries read it), `runs.price_*`, `runs.judge_*`, `runs.rtt_ms`, `run_dims.judge_cost_usd` and `results` are not readable through the public API ([api.md](api.md#exposure-rules)).
 
@@ -86,7 +86,8 @@ Indexes: `ui_samples(run_id)`, `ui_samples(stars, created_at)`, `runs(model, eff
 
 - `models`, `prices`, `runs`, `run_dims`: kept forever (small).
 - `results` rows: kept forever, without `reply` after the retention period.
-- `reply`: stored truncated to 2000 characters; set to null by the daily maintenance job after `retention.reply_days` ([config.md](config.md#global-settings)).
+ - `reply`: stored truncated to 2000 characters; set to null by the daily maintenance job after `retention.reply_days` ([config.md](docs/config.md)).
+ - `probes`: deleted by the daily maintenance job after `availability.retention_days`.
 - Reason: free disk on the host is limited ([deployment.md](deployment.md#host)).
 
 ## Migrations

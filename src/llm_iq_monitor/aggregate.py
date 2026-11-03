@@ -22,7 +22,7 @@ def adjust(raw, rtt):
 
 def finalize_run(conn, run_id):
     run = conn.execute("SELECT * FROM runs WHERE id=?", (run_id,)).fetchone()
-    if not run:
+    if run is None:
         raise ValueError(f"unknown run {run_id}")
     rows = conn.execute("SELECT * FROM results WHERE run_id=? ORDER BY id", (run_id,)).fetchall()
     rtt = run["rtt_ms"]
