@@ -25,7 +25,7 @@ Intervals shorter than the heartbeat period behave as one heartbeat period. A ne
 - Queue: FIFO. Up to `run.parallel_models` models run at once.
 - A cycle for a model: for each selected effort, in the order low, medium, high, run the model's selected dimensions. Efforts of one model never overlap; questions within a run are serial, so a model's own load does not distort its latency.
 - Question seed: the UTC date of the tick that triggered the cycle ([benchmark.md](benchmark.md#generation)). All models triggered on the same day get identical questions; repeated cycles on the same day repeat the questions, which also exposes run-to-run variance.
-- A run aborted by the consecutive-error rule ([metrics.md](metrics.md#errors)) leaves `last_trigger_at` unchanged.
+- A run aborted after a question exhausts its attempts ([metrics.md](metrics.md#errors)) leaves `last_trigger_at` unchanged and is retried at the next heartbeat.
 - On startup, runs left `running` become `aborted`; queued work is dropped and recomputed at the next tick.
 - Manual run: CLI, same code path, `trigger = 'manual'`, limited to chosen models, ignores intervals.
 
@@ -40,7 +40,7 @@ Sent to `POST {gateway.base_url}/chat/completions`:
 | `max_tokens` | `run.max_tokens` |
 | `reasoning_effort` | `low`, `medium` or `high`; always sent |
 
-The timeout is `run.timeout_s`. No retries ([metrics.md](metrics.md#errors)). The fields actually sent are stored in `runs.params` ([data-model.md](data-model.md)), so history stays interpretable after a setting changes.
+The timeout is `run.timeout_s`; retry count and delay are [run settings](config.md#global-settings). The fields actually sent are stored in `runs.params` ([data-model.md](data-model.md)), so history stays interpretable after a setting changes.
 
 Gateway behaviour behind this is taken from CLIProxyAPI v8.0.48 source and docs; the gateway is CLIProxyAPI, the deployed version is not verified. `reasoning_effort` works for GPT and Claude models and is translated to the upstream format. Reasoning text arrives in `delta.reasoning_content`, answer text in `delta.content`, reasoning token count in `usage.completion_tokens_details.reasoning_tokens`.
 

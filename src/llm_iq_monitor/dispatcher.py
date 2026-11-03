@@ -135,7 +135,7 @@ class Dispatcher:
                     if aborted and trigger == "schedule":
                         await self._set_trigger(model, previous)
                         self.last_trigger[model] = previous
-                        log.info("run aborted for %s after consecutive capacity errors", model)
+                        log.info("run aborted for %s after an exhausted question", model)
             finally:
                 self.active.discard(model)
 

@@ -119,7 +119,7 @@
     if (input) input.value = fieldValue(path) == null ? '' : fieldValue(path);
   }
   function renderSettings() {
-    ['gateway.base_url', 'gateway.models_url', 'schedule.heartbeat_cron', 'models.default_interval_h', 'run.parallel_models', 'run.timeout_s', 'run.max_tokens', 'net.rtt_fallback_ms', 'retention.reply_days'].forEach(populateField);
+    ['gateway.base_url', 'gateway.models_url', 'schedule.heartbeat_cron', 'models.default_interval_h', 'run.parallel_models', 'run.timeout_s', 'run.max_tokens', 'run.max_attempts', 'run.retry_delay_s', 'net.rtt_fallback_ms', 'retention.reply_days'].forEach(populateField);
     optionCheckboxes($('#default-dims'), DIMENSIONS, state.settings.models.default_dims || DIMENSIONS);
     optionCheckboxes($('#default-efforts'), EFFORTS, state.settings.models.default_efforts || ['medium'], 'effort');
     $('#heartbeat-next').textContent = (state.heartbeat_next || []).join(' · ') || '—';

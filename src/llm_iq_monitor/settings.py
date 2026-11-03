@@ -150,6 +150,8 @@ class Run(BaseModel):
     parallel_models: int = Field(default=1, ge=1, le=8)
     timeout_s: int = Field(default=600, ge=1)
     max_tokens: int = Field(default=16384, ge=1)
+    max_attempts: int = Field(default=3, ge=1)
+    retry_delay_s: float = Field(default=10, ge=0)
 
 
 class Net(BaseModel):

@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 import json
 import time
+import asyncio
 from typing import Any
 
 
@@ -28,6 +29,8 @@ async def run_model(model: str, *, settings, conn=None, db=None, gateway=None,
     seed = seed or time.strftime("%Y%m%d", time.gmtime(tick_time or time.time()))
     dataset_version = _question_version()
     params = {"max_tokens": _v(settings.run, "max_tokens"), "timeout_s": _v(settings.run, "timeout_s"),
+              "max_attempts": _v(settings.run, "max_attempts", 3),
+              "retry_delay_s": _v(settings.run, "retry_delay_s", 10),
               "reasoning_effort": None}
     gateway = gateway or _lazy("llm_iq_monitor.gateway").Gateway(
         _v(settings.gateway, "base_url"), _v(settings.gateway, "api_key"), timeout=_v(settings.run, "timeout_s"))
@@ -39,7 +42,6 @@ async def run_model(model: str, *, settings, conn=None, db=None, gateway=None,
     judge_price = await _price(db, conn, judge_model) if writing else None
     rtt = await _rtt(gateway, settings)
     out = []
-    capacity_errors = 0
     for effort in efforts:
         params["reasoning_effort"] = effort
         run_id = await _call(db.create_run, conn, model=model, effort=effort, seed=seed,
@@ -68,11 +70,24 @@ async def run_model(model: str, *, settings, conn=None, db=None, gateway=None,
                             continue
                     started = time.perf_counter()
                     try:
-                        reply = await gateway.chat(model, [{"role": "user", "content": question.prompt}],
-                                                    effort=effort, max_tokens=_v(settings.run, "max_tokens"),
-                                                    timeout=_v(settings.run, "timeout_s"))
-                        if getattr(reply, "error", None):
-                            raise RuntimeError(reply.error)
+                        reply = None
+                        max_attempts = _v(settings.run, "max_attempts", 3)
+                        retry_delay = _v(settings.run, "retry_delay_s", 10)
+                        for attempt in range(max_attempts):
+                            try:
+                                reply = await gateway.chat(model, [{"role": "user", "content": question.prompt}],
+                                                            effort=effort, max_tokens=_v(settings.run, "max_tokens"),
+                                                            timeout=_v(settings.run, "timeout_s"))
+                                if getattr(reply, "error", None):
+                                    raise RuntimeError(reply.error)
+                                break
+                            except Exception as exc:
+                                if getattr(exc, "unsupported", False):
+                                    raise
+                                if attempt + 1 >= max_attempts:
+                                    raise
+                                if retry_delay:
+                                    await asyncio.sleep(retry_delay)
                         if dim == "ui":
                             ui_module = _lazy("llm_iq_monitor.ui")
                             svg, valid = ui_module.sanitize_svg(reply.reply)
@@ -86,7 +101,6 @@ async def run_model(model: str, *, settings, conn=None, db=None, gateway=None,
                             await _call(db.insert_result, conn, run_id, **fields)
                             await _call(db.insert_ui_sample, conn, run_id, prompt_key,
                                          question.prompt, svg, valid)
-                            capacity_errors = 0
                             continue
                         correct = False if reply.finish_reason == "length" else await _score(question, reply.reply)
                         fields = dict(qid=question.qid, dim=dim, correct=int(bool(correct)), error=None,
@@ -108,7 +122,6 @@ async def run_model(model: str, *, settings, conn=None, db=None, gateway=None,
                                               judge_out_tok=judged.out_tok, judge_latency_s=judged.latency_s)
                             except Exception:
                                 pass
-                        capacity_errors = 0
                     except Exception as exc:
                         if getattr(exc, "unsupported", False):
                             await _call(db.finish_run, conn, run_id, status="unsupported")
@@ -123,12 +136,7 @@ async def run_model(model: str, *, settings, conn=None, db=None, gateway=None,
                                       latency_s=time.perf_counter()-started, ttft_s=None,
                                       reasoning_ttft_s=None, in_tok=None, out_tok=None, reasoning_tok=None,
                             quality=None, judge_in_tok=None, judge_out_tok=None, judge_latency_s=None, reply=None)
-                        if error_name == "http_error" and status in {429, 502, 503, 529}:
-                            capacity_errors += 1
-                            if capacity_errors >= 5:
-                                aborted = True
-                        else:
-                            capacity_errors = 0
+                        aborted = True
                         if dim == "ui" and hasattr(db, "insert_ui_sample"):
                             await _call(db.insert_ui_sample, conn, run_id, prompt_key,
                                          question.prompt, None, False)

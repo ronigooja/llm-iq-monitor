@@ -28,6 +28,8 @@ Precedence, highest first: environment variable `GATEWAY_API_KEY` (key only) →
 | `run.parallel_models` | 1 | Models run concurrently ([scheduling.md](scheduling.md#execution)) |
 | `run.timeout_s` | 600 | Per-question timeout |
 | `run.max_tokens` | 16384 | Max output tokens per question |
+| `run.max_attempts` | 3 | Total attempts per question, including the first request |
+| `run.retry_delay_s` | 10 | Seconds between retry attempts |
 | `judge.model` | `claude-opus-5-5` | Model that rates writing quality ([benchmark.md](benchmark.md#writing-and-judge)). Must have a price |
 | `judge.effort` | `low` | Reasoning effort sent to the judge: `low`, `medium` or `high` |
 | `net.rtt_fallback_ms` | 30 | Network round trip used when it cannot be measured ([metrics.md](metrics.md#network-round-trip)) |
@@ -63,7 +65,7 @@ The web console at `/admin/` ([web.md](web.md#page-admin-admin), [deployment.md]
 | Gateway | Base URL, models URL, key (write-only, shown only as set / not set), test connection (HTTP status, model count; never the key) |
 | Models | One row per known model: state, price, interval, dimensions, efforts. Models without a price show "no price" and cannot be enabled. Multi-select with bulk apply; refresh the list from the gateway. A newly enabled model gets the defaults |
 | Defaults and heartbeat | `schedule.heartbeat_cron` (next five ticks), `models.default_*`, `prices.*` |
-| Run limits | Parallel models, timeout, max tokens, round-trip fallback, reply retention |
+| Run limits | Parallel models, timeout, max tokens, attempts, retry delay, round-trip fallback, reply retention |
 | Judge | Judge model (only models with a price) and effort; judge calls add cost |
 | Overview | Estimated runs and tokens, shown per week (daily value × 7, with K / M units) ([scheduling.md](scheduling.md#token-budget)) |
 

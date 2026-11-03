@@ -18,8 +18,7 @@ def test_finalize():
     conn.execute("UPDATE runs SET finished_at=? WHERE id=?", (now + 2, run))
     finalize_run(conn, run)
     row = conn.execute("SELECT * FROM run_dims").fetchone()
-    assert row["n"] == 2 and row["n_err"] == 1 and row["score"] == 50
-    assert row["availability"] == .5
+    assert row["n"] == 2 and row["n_err"] == 1 and row["score"] is None
     assert conn.execute("SELECT status FROM runs").fetchone()[0] == "partial"
 
 
@@ -34,11 +33,11 @@ def test_finalize_ui_and_future_dimensions():
     finalize_run(conn, run)
     ui = conn.execute("SELECT * FROM run_dims WHERE dim='ui'").fetchone()
     future = conn.execute("SELECT * FROM run_dims WHERE dim='future'").fetchone()
-    assert ui["score"] is None and ui["n"] == 1 and ui["n_err"] == 0 and ui["availability"] == 1
+    assert ui["score"] is None and ui["n"] == 1 and ui["n_err"] == 0
     assert future["score"] == 100
 
 
-def test_finalize_score_uses_all_questions_as_denominator():
+def test_finalize_score_uses_answered_questions_at_eighty_percent_boundary():
     conn = connect(":memory:")
     conn.execute("INSERT INTO models(id,active) VALUES ('m',1)")
     now = time.time()
@@ -49,11 +48,35 @@ def test_finalize_score_uses_all_questions_as_denominator():
     conn.execute("UPDATE runs SET finished_at=? WHERE id=?", (now + 2, run))
     finalize_run(conn, run)
     row = conn.execute("SELECT * FROM run_dims").fetchone()
-    assert row["score"] == 100 * 16 / 18
-    assert row["n"] == 18 and row["n_err"] == 2 and row["availability"] == 16 / 18
+    assert row["score"] == 100
+    assert row["n"] == 18 and row["n_err"] == 2
 
 
-def test_finalize_all_errors_score_zero_and_quality_keeps_half_rule():
+def test_finalize_score_below_eighty_percent_is_null_and_errors_are_not_wrong():
+    conn = connect(":memory:")
+    conn.execute("INSERT INTO models(id,active) VALUES ('m',1)")
+    now = time.time()
+    run = create_run(conn, model="m", effort="medium", seed="s", dataset_version="v4", trigger="manual", dims='["math"]', params="{}", status="running", started_at=now)
+    for i in range(10):
+        insert_result(conn, run, qid=f"q{i}", dim="math", correct=1 if i == 0 else None,
+                      error=None if i == 0 else "timeout", latency_s=1)
+    conn.execute("UPDATE runs SET finished_at=? WHERE id=?", (now + 2, run))
+    finalize_run(conn, run)
+    assert conn.execute("SELECT score FROM run_dims").fetchone()[0] is None
+
+
+def test_finalize_ui_scoring_is_unaffected_by_machine_score_rule():
+    conn = connect(":memory:")
+    conn.execute("INSERT INTO models(id,active) VALUES ('m',1)")
+    now = time.time()
+    run = create_run(conn, model="m", effort="medium", seed="s", dataset_version="v4", trigger="manual", dims='["ui"]', params="{}", status="running", started_at=now)
+    insert_result(conn, run, qid="u1", dim="ui", correct=None, error=None, latency_s=1)
+    conn.execute("UPDATE runs SET finished_at=? WHERE id=?", (now + 2, run))
+    finalize_run(conn, run)
+    assert conn.execute("SELECT score FROM run_dims").fetchone()[0] is None
+
+
+def test_finalize_all_errors_score_null_and_quality_keeps_half_rule():
     conn = connect(":memory:")
     conn.execute("INSERT INTO models(id,active) VALUES ('m',1)")
     now = time.time()
@@ -67,7 +90,7 @@ def test_finalize_all_errors_score_zero_and_quality_keeps_half_rule():
     finalize_run(conn, run)
     math = conn.execute("SELECT * FROM run_dims WHERE dim='math'").fetchone()
     writing = conn.execute("SELECT * FROM run_dims WHERE dim='write_en'").fetchone()
-    assert math["score"] == 0 and math["availability"] == 0
+    assert math["score"] is None
     assert writing["score"] == 100 and writing["quality"] is None
 
 

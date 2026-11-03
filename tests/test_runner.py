@@ -44,3 +44,36 @@ async def test_runner_serializes_efforts_and_persists_raw_results(monkeypatch):
     assert all(run["rtt_ms"] == 5 for run in db.runs)
     assert all(result[1]["correct"] is True or result[1]["correct"] == 1 for result in db.results)
     assert json.loads(db.runs[0]["params"])["reasoning_effort"] == "low"
+
+
+@pytest.mark.asyncio
+async def test_runner_retries_errors_and_aborts_after_exhaustion(monkeypatch):
+    q1 = SimpleNamespace(qid="q1", kind="exact", expected="yes", prompt="p1")
+    q2 = SimpleNamespace(qid="q2", kind="exact", expected="yes", prompt="p2")
+    monkeypatch.setattr("llm_iq_monitor.runner._generate", lambda dim, seed: [q1, q2])
+    monkeypatch.setattr("llm_iq_monitor.runner._score", lambda q, reply: True)
+
+    class Gateway:
+        def __init__(self): self.calls = 0
+        async def chat(self, *args, **kwargs):
+            self.calls += 1
+            if self.calls <= 3:
+                from llm_iq_monitor.gateway import GatewayError
+                raise GatewayError("timeout")
+            return Completion("ok", 1, .2, .1, 2, 3, 1, "stop")
+        async def connect_rtt_ms(self, *args): return 5
+
+    settings = SimpleNamespace(
+        gateway=SimpleNamespace(base_url="http://x", api_key=None),
+        run=SimpleNamespace(max_tokens=20, timeout_s=4, max_attempts=3, retry_delay_s=0),
+        net=SimpleNamespace(rtt_fallback_ms=30),
+        effective=lambda model: SimpleNamespace(dims=["math"], efforts=["low"]),
+    )
+    db = DB()
+    monkeypatch.setattr("llm_iq_monitor.runner._lazy", lambda name: __import__(name, fromlist=["*"]) if name.endswith("aggregate") else db)
+    import llm_iq_monitor.aggregate as aggregate
+    monkeypatch.setattr(aggregate, "finalize_run", lambda conn, run_id: None)
+    ids = await run_model("m", settings=settings, conn=object(), db=db, gateway=Gateway(), tick_time=0)
+    assert ids == [1]
+    assert db.runs[0]["status"] == "aborted"
+    assert len(db.results) == 1

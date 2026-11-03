@@ -18,7 +18,12 @@
 | UI dimension | Pelican-style SVG with a second fixed subject (penguin driving a tractor), the newest 7 samples per target kept, shown on the site, rated 1–10 stars by a person with a rating key; the key is generated on the host ([benchmark.md](benchmark.md#ui-samples), [deployment.md](deployment.md#rating-key)) |
 | Pages | Real paths `/`, `/compare`, `/ui`, not `#` routing ([web.md](web.md)) |
 | Concurrency | `run.parallel_models` is 1 because the gateway limits capacity |
-| Errors | No retries; stream errors void the question; consecutive capacity errors abort the run early ([metrics.md](metrics.md#errors)) |
+| Errors | Each model-side or gateway-side question error is retried up to the configured total; an exhausted question aborts its model × effort run and leaves it for the next heartbeat ([metrics.md](metrics.md#errors)) |
+| Retry per question | `run.max_attempts` defaults to 3 total attempts and `run.retry_delay_s` defaults to 10 seconds; unsupported effort responses are not retried ([config.md](config.md#global-settings)) |
+| Give up stops the run | The first exhausted question stops that model × effort run, preserving earlier results and excluding the aborted run from ranking |
+| Errors are not scored | Errored questions are excluded from correct and answered denominators; answered-but-wrong remains wrong |
+| 80 percent rule | A non-UI dimension score is null when fewer than 80% of its questions are answered; UI scoring is unchanged |
+| Dataset v4 | Scoring and retry/give-up behavior changed; v3 and v4 scores are not comparable ([benchmark.md](benchmark.md#dataset-versioning)) |
 | Writing dimensions | `write_zh` and `write_en`, 8 questions each covering constrained replies, notices, summaries, guides, stories, essays and promotional copy. Rule checks give `score`; a judge model gives a separate `quality` ([benchmark.md](benchmark.md#writing-and-judge)) |
 | Self-judging | Allowed: a model that is the judge still gets a `quality` ([benchmark.md](benchmark.md#writing-and-judge)) |
 | Dimension selection | Global default and per model, multi-select, all checked by default ([config.md](config.md#per-model-settings)) |
@@ -65,3 +70,4 @@ None.
 ## Dataset history
 
 | Dataset v3 writing set | The eight writing templates and their seeded vocabularies are fixed by the user request; future template changes require another dataset version bump. |
+| Dataset v4 scoring | v4 supersedes the earlier decisions “no retries” and “errored counts as wrong”; question templates remain unchanged. |
