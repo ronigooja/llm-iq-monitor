@@ -1,6 +1,6 @@
 # Web
 
-Three public pages served by Datasette (`--static` for assets, templates under `deploy/templates/pages/`). Real paths, no `#` routing: `/` (Scores), `/compare` (Compare), `/ui` (UI samples), `/api` (API reference). Data comes only from the public queries ([api.md](api.md)). No model detail page. No build step.
+Public pages served by Datasette use real paths: Home, Compare, UI, Availability and API. Data comes only from the public queries ([api.md](api.md)). No model detail page or build step.
 
 ## Style rules
 
@@ -56,6 +56,10 @@ Buttons and cards use the names from the `dimensions` query: the dimension key p
 - After a click the page sends `rate`, then reads the sample back and shows the stored stars, because an out-of-range value changes nothing.
 - SVG is never inlined into the page DOM: it is set as `<img src="data:image/svg+xml;...">`, so scripts and external loads inside it do not run. The page also sets a strict `Content-Security-Policy` (no inline scripts except the page's own file, `img-src data:`).
 
+## Page: Availability (`/availability`)
+
+Bilingual. Show one row per model × effort sorted by model and low/medium/high, with current availability, a busy/idle/unknown state chip, and a colored 24-hour strip. Use `availability_history` for a 1-day hourly range or 7/30-day daily, time-weighted buckets. Empty buckets are blank. This page-only query is not in the public API table.
+
 ## Charts
 
 - Gaps for null values, not zero.
@@ -73,3 +77,5 @@ Public reference built from [api.md](api.md): every query with purpose, paramete
 ## Page: Admin (`/admin/`)
 
 Served by the admin service, not Datasette ([deployment.md](deployment.md#admin-console)). One page, `noindex`, bilingual with the site's language switch; effort labels untranslated. Login form (admin token) until a session exists. Sections and fields are in [config.md](config.md#admin-console). A sticky bar shows unsaved changes with Save and Discard; 422 errors appear inline at the field (`data-field` is the dotted settings path). Assets `web/admin.{html,js,css}` are served from a fixed whitelist under `/admin/static/`; strict CSP, no inline script or style.
+
+The **Run status** panel reads `/admin/api/status` and shows one enabled model × selected effort row: running progress (finished result count / `DIM_COUNTS` total), last run status and time, next due time, deferred state, and latest probe state, timestamp, result, latency, current availability and sample count.

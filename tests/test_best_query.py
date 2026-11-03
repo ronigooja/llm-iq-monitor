@@ -39,25 +39,25 @@ def add_candidate_db(path):
           ('epsilon-null-price', 1, 1, 100, 100),
           ('zeta-slow', 1, 1, 100, 100);
         INSERT INTO runs VALUES
-          (10,'gamma-fast','high','20261103','v1','schedule','["reasoning","code","ui"]','{}',1,2,120,90,110,'ok',1,10,0.1,2,NULL,NULL,NULL),
-          (11,'DELTA-cheap','low','20261103','v1','schedule','["reasoning","code","ui"]','{}',1,2,120,90,111,'ok',1,10,0.1,2,NULL,NULL,NULL),
-          (12,'epsilon-null-price','medium','20261103','v1','schedule','["reasoning"]','{}',1,2,120,90,112,'ok',1,10,0.1,2,NULL,NULL,NULL),
-          (13,'zeta-slow','medium','20261103','v1','schedule','["reasoning"]','{}',1,2,120,90,113,'ok',1,10,0.1,2,NULL,NULL,NULL);
+          (10,'gamma-fast','high','20261103','v1','schedule','["reasoning","code","ui"]','{}',1,2,120,90,110,'ok',10,0.1,2,NULL,NULL,NULL),
+          (11,'DELTA-cheap','low','20261103','v1','schedule','["reasoning","code","ui"]','{}',1,2,120,90,111,'ok',10,0.1,2,NULL,NULL,NULL),
+          (12,'epsilon-null-price','medium','20261103','v1','schedule','["reasoning"]','{}',1,2,120,90,112,'ok',10,0.1,2,NULL,NULL,NULL),
+          (13,'zeta-slow','medium','20261103','v1','schedule','["reasoning"]','{}',1,2,120,90,113,'ok',10,0.1,2,NULL,NULL,NULL);
         INSERT INTO run_dims VALUES
-          (10,'reasoning',100,12,0,1,8,9,1,24,100,50,0.2,0.20,NULL,NULL),
-          (11,'reasoning',99,12,0,1,2,3,1,24,100,50,0.1,0.10,NULL,NULL),
-          (12,'reasoning',99,12,0,1,1,2,1,24,100,50,0.1,NULL,NULL,NULL),
-          (13,'reasoning',99,12,0,1,NULL,NULL,1,24,100,50,0.1,0.13,NULL,NULL),
-          (10,'code',100,12,0,1,8,9,1,24,100,50,0.2,0.20,NULL,NULL),
-          (11,'code',99,12,0,1,2,3,1,24,100,50,0.1,0.10,NULL,NULL),
-          (10,'ui',50,2,0,1,8,9,1,24,100,50,0.2,0.20,NULL,NULL),
-          (11,'ui',50,2,0,1,2,3,1,24,100,50,0.1,0.10,NULL,NULL);
+          (10,'reasoning',100,12,0,8,9,1,24,100,50,0.2,0.20,NULL,NULL),
+          (11,'reasoning',99,12,0,2,3,1,24,100,50,0.1,0.10,NULL,NULL),
+          (12,'reasoning',99,12,0,1,2,1,24,100,50,0.1,NULL,NULL,NULL),
+          (13,'reasoning',99,12,0,NULL,NULL,1,24,100,50,0.1,0.13,NULL,NULL),
+          (10,'code',100,12,0,8,9,1,24,100,50,0.2,0.20,NULL,NULL),
+          (11,'code',99,12,0,2,3,1,24,100,50,0.1,0.10,NULL,NULL),
+          (10,'ui',50,2,0,8,9,1,24,100,50,0.2,0.20,NULL,NULL),
+          (11,'ui',50,2,0,2,3,1,24,100,50,0.1,0.10,NULL,NULL);
         INSERT INTO ui_samples VALUES
           (10,10,'classic','pelican','<svg/>',1,10,300,110),
           (11,11,'classic','pelican','<svg/>',1,9,300,111);
         INSERT INTO runs VALUES
-          (14,'gamma-fast','low','20261102','v0','schedule','["reasoning"]','{}',1,2,120,80,90,'ok',1,10,0.1,2,NULL,NULL,NULL);
-        INSERT INTO run_dims VALUES (14,'reasoning',1,12,0,1,1,2,1,24,100,50,0.01,0.01,NULL,NULL);
+          (14,'gamma-fast','low','20261102','v0','schedule','["reasoning"]','{}',1,2,120,80,90,'ok',10,0.1,2,NULL,NULL,NULL);
+        INSERT INTO run_dims VALUES (14,'reasoning',1,12,0,1,2,1,24,100,50,0.01,0.01,NULL,NULL);
         """
     )
     db.commit()
