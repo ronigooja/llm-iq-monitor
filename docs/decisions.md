@@ -45,6 +45,7 @@
 | Third-party leaderboards | No comparison with Artificial Analysis or others |
 | Excluded tests | Seahorse-emoji questions. The SVG/pelican test is no longer excluded: it is the `ui` dimension with variants, rated by a person |
 | Connectivity check | Not needed before building the client |
+| Availability probe intervals | Use the idle interval only for classified-idle models; busy and unknown models use the busy interval, and models without probes are probed immediately ([config.md](config.md#availability-settings)) |
 
 ## Known limits (to revisit with real data)
 

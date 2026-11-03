@@ -22,7 +22,7 @@ def test_admin_html_uses_only_whitelisted_versioned_assets_and_no_inline_code():
         "/admin/static/admin.css?v=11",
     ]
     assert re.findall(r'<script[^>]+src="([^"]+)"', HTML) == [
-        "/admin/static/i18n.js?v=3",
+        "/admin/static/i18n.js?v=4",
         "/admin/static/admin.js?v=11",
     ]
     assert not re.search(r"<script(?![^>]+\bsrc=)[^>]*>", HTML, re.I)

@@ -20,6 +20,10 @@ A due model gets `last_trigger_at = tick_time` and is queued. The comparison use
 
 Intervals shorter than the heartbeat period behave as one heartbeat period. A newly enabled model is due at the next tick.
 
+## Availability probes
+
+The probe loop uses the idle interval only for models classified idle. Busy and unknown models, including models without a probe-state row, use the busy interval; a model without probes is probed immediately. Classification still runs on `availability.classify_every_min` ([config.md](config.md#availability-settings)).
+
 ## Execution
 
 - Queue: FIFO. Up to `run.parallel_models` models run at once.

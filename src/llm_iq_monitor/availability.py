@@ -13,6 +13,12 @@ from typing import Any, Callable
 log = logging.getLogger(__name__)
 
 
+def probe_interval(availability, state: str) -> int:
+    """Return the probe interval in minutes for a classified state."""
+    return (availability.probe_idle_every_min
+            if state == "idle" else availability.probe_busy_every_min)
+
+
 def weighted_ratio(probes: list[dict[str, Any]], start: float, end: float, cap: float) -> tuple[float | None, int]:
     """Return the time-weighted success ratio and sample count in a window."""
     selected = [p for p in probes if start <= p["t"] < end]
@@ -106,7 +112,7 @@ async def probe_loop(settings, conn, gateway_factory: Callable, models_loader: C
                     continue
                 state_row = conn.execute("SELECT state FROM probe_state WHERE model=? AND effort=?", (model, current.availability.probe_effort)).fetchone()
                 state = state_row[0] if state_row else "unknown"
-                interval = current.availability.probe_busy_every_min if state == "busy" else current.availability.probe_idle_every_min
+                interval = probe_interval(current.availability, state)
                 smallest_interval = min(smallest_interval, interval * 60)
                 last = conn.execute("SELECT MAX(t) FROM probes WHERE model=? AND effort=?", (model, current.availability.probe_effort)).fetchone()[0]
                 if last is None or now - last >= interval * 60:
