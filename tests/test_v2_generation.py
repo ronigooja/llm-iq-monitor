@@ -16,8 +16,8 @@ def _daily(start, count):
 
 
 def test_documented_counts():
-    assert {d: DIM_COUNTS[d] for d in DIMS} == {"reasoning": 18, "code": 12, "instruction": 14, "write_zh": 6,
-                                                "write_en": 6, "ui": 2}
+    assert {d: DIM_COUNTS[d] for d in DIMS} == {"reasoning": 18, "code": 12, "instruction": 14, "write_zh": 8,
+                                                "write_en": 8, "ui": 2}
 
 
 def test_each_generate_call_is_fast_for_120_daily_seeds():

@@ -72,6 +72,8 @@ def test_dimensions_query_keeps_display_order_and_text():
     sql = metadata["databases"]["monitor"]["queries"]["dimensions"]["sql"]
     assert "'reasoning'" in sql and "'ui'" in sql
     assert sql.index("'reasoning'") < sql.index("'code'") < sql.index("'instruction'") < sql.index("'write_zh'") < sql.index("'write_en'") < sql.index("'ui'")
+    assert "Chinese writing under explicit constraints: replies, notices, summaries, guides, stories, essays, promotional copy" in sql
+    assert "English writing under explicit constraints: replies, notices, summaries, guides, stories, essays, promotional copy" in sql
 
 
 def test_static_files_have_no_merge_markers():

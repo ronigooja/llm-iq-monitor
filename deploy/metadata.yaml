@@ -104,8 +104,8 @@ databases:
             SELECT 'reasoning' AS dim, 'Reasoning' AS name, 'Multi-step reasoning, avoiding common-sense traps, reading tables and figures, not making things up' AS use_when
             UNION ALL SELECT 'code', 'Code', 'Writing a function, reading code, fixing a bug'
             UNION ALL SELECT 'instruction', 'Instruction following', 'Following a strict output format, extracting fields into JSON'
-            UNION ALL SELECT 'write_zh', 'Writing · 中文', 'Chinese marketing copy'
-            UNION ALL SELECT 'write_en', 'Writing · English', 'English marketing copy'
+            UNION ALL SELECT 'write_zh', 'Writing · 中文', 'Chinese writing under explicit constraints: replies, notices, summaries, guides, stories, essays, promotional copy'
+            UNION ALL SELECT 'write_en', 'Writing · English', 'English writing under explicit constraints: replies, notices, summaries, guides, stories, essays, promotional copy'
             UNION ALL SELECT 'ui', 'Drawing (SVG)', 'Drawing and visual layout, shown as SVG'
           ), latest AS (
             SELECT r.id AS run_id, r.model, r.effort, r.finished_at,
@@ -251,8 +251,8 @@ databases:
           SELECT 'reasoning' AS dim, 'Reasoning' AS name, 'Multi-step reasoning, avoiding common-sense traps, reading tables and figures, not making things up' AS use_when, 'answer' AS kind
           UNION ALL SELECT 'code', 'Code', 'Writing a function, reading code, fixing a bug', 'code'
           UNION ALL SELECT 'instruction', 'Instruction following', 'Following a strict output format, extracting fields into JSON', 'text'
-          UNION ALL SELECT 'write_zh', 'Writing · 中文', 'Chinese marketing copy', 'text'
-          UNION ALL SELECT 'write_en', 'Writing · English', 'English marketing copy', 'text'
+           UNION ALL SELECT 'write_zh', 'Writing · 中文', 'Chinese writing under explicit constraints: replies, notices, summaries, guides, stories, essays, promotional copy', 'text'
+           UNION ALL SELECT 'write_en', 'Writing · English', 'English writing under explicit constraints: replies, notices, summaries, guides, stories, essays, promotional copy', 'text'
           UNION ALL SELECT 'ui', 'Drawing (SVG)', 'Drawing and visual layout, shown as SVG', 'svg'
       ui_samples:
         allow: true

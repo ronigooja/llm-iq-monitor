@@ -16,8 +16,8 @@ def test_estimate_budget_scales_dimensions_and_efforts():
     settings.models.per_model["demo"] = {"enabled": True, "interval_h": 6, "dims": ["math", "logic", "code"], "efforts": ["low", "high"]}
     budget = estimate_budget(settings)
     assert budget["runs_per_day"] == 8
-    assert budget["input_tokens_per_day"] == 49655
-    assert budget["output_tokens_per_day"] == 99310
+    assert budget["input_tokens_per_day"] == 46451
+    assert budget["output_tokens_per_day"] == 92903
     assert budget["judge_calls_per_day"] == 0
 
 
@@ -26,17 +26,17 @@ def test_estimate_budget_counts_writing_judge_calls():
     settings.models.per_model["writer"] = {"enabled": True, "interval_h": 24, "dims": ["write_zh", "write_en"], "efforts": ["low"]}
     budget = estimate_budget(settings)
     assert budget["runs_per_day"] == 1
-    assert budget["judge_calls_per_day"] == 12
-    assert budget["judge_input_tokens_per_day"] == 12000
+    assert budget["judge_calls_per_day"] == 16
+    assert budget["judge_input_tokens_per_day"] == 16000
 
 
-def test_estimate_budget_uses_58_question_run_and_ui_questions():
+def test_estimate_budget_uses_62_question_run_and_ui_questions():
     settings = Settings()
     settings.models.per_model["ui-model"] = {"enabled": True, "interval_h": 24, "dims": ["ui"], "efforts": ["low"]}
     budget = estimate_budget(settings)
-    assert budget["input_tokens_per_day"] == 344
-    assert budget["output_tokens_per_day"] == 689
-    assert budget["output_tokens_with_thinking_per_day"] == 2758
+    assert budget["input_tokens_per_day"] == 322
+    assert budget["output_tokens_per_day"] == 645
+    assert budget["output_tokens_with_thinking_per_day"] == 2580
 
 
 def test_dimension_choices_exclude_legacy_dimensions():

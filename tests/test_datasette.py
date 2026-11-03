@@ -67,13 +67,13 @@ async def test_quality_is_returned_but_does_not_change_ranking(client):
 async def test_public_views_follow_the_current_dataset_version(monitor_db):
     import sqlite3
     db = sqlite3.connect(monitor_db)
-    db.execute("INSERT INTO runs VALUES (5,'beta','high','20261103','v2','schedule','[\"reasoning\"]','{}',1,2,120,200,210,'ok',1,10,0.1,2,NULL,NULL,NULL)")
+    db.execute("INSERT INTO runs VALUES (5,'beta','high','20261103','v3','schedule','[\"reasoning\"]','{}',1,2,120,200,210,'ok',1,10,0.1,2,NULL,NULL,NULL)")
     db.execute("INSERT INTO run_dims VALUES (5,'reasoning',70,18,0,1,2,3,1,24,100,50,0.1,0.01,NULL,NULL)")
     db.commit(); db.close()
     ds = Datasette([str(monitor_db)], metadata=yaml.safe_load((ROOT / "deploy/metadata.yaml").read_text()))
     async with AsyncClient(transport=ASGITransport(app=ds.app()), base_url="http://test") as c:
         get = lambda name, **p: c.get(f"/monitor/{name}.json", params={**p, "_shape": "array"})
-        assert (await get("health")).json()[0]["dataset_version"] == "v2"
+        assert (await get("health")).json()[0]["dataset_version"] == "v3"
         assert (await get("ranking", dim="math")).json() == []
         assert [r["model"] for r in (await get("ranking", dim="reasoning")).json()] == ["beta"]
         assert [(r["model"], r["dims"]) for r in (await get("models")).json()] == [("beta", "reasoning")]

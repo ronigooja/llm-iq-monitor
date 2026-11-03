@@ -44,8 +44,14 @@ def _quality(reply: str) -> float | None:
 
 async def judge_reply(gateway, judge_model, effort, brief, reply, lang, *, max_tokens, timeout):
     """Rate a writing reply; judge failures are represented by null quality."""
+    marketing = bool(brief.get("marketing")) if isinstance(brief, dict) else False
+    task_guidance = (
+        "This is marketing copy: judge the product, audience, and tone, including concrete selling value."
+        if marketing else
+        "This is not marketing: judge the response against its own task brief, including task type, subject, audience, and tone where provided. Do not require product promotion."
+    )
     prompt = (
-        "You are evaluating copywriting. Score fit (follows the brief and suits its "
+        "You are evaluating a writing response. " + task_guidance + " Score fit (follows the brief and suits its "
         "audience and tone), fluency (natural and correct target-language writing), "
         "and persuasion (concrete and persuasive, not generic). Return exactly one "
         "JSON object with integer scores from 1 to 5 for fit, fluency, and persuasion. Do not include any "

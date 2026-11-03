@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 import hashlib
 import random
 
-DATASET_VERSION = "v2"
+DATASET_VERSION = "v3"
 
 
 @dataclass(frozen=True)

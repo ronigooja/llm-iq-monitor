@@ -12,7 +12,7 @@ def test_defaults_and_effective_model():
     assert settings.effective("new").efforts == ["medium"]
     assert settings.models.default_dims is None
     assert settings.run.parallel_models == 1
-    assert DIM_COUNTS == {"reasoning": 18, "code": 12, "instruction": 14, "write_zh": 6, "write_en": 6, "ui": 2,
+    assert DIM_COUNTS == {"reasoning": 18, "code": 12, "instruction": 14, "write_zh": 8, "write_en": 8, "ui": 2,
                           "trap": 12, "math": 12, "logic": 12, "science": 12}
     assert settings.judge.model == "claude-opus-5-5"
     assert settings.judge.effort == "low"

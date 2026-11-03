@@ -19,7 +19,7 @@
 | Pages | Real paths `/`, `/compare`, `/ui`, not `#` routing ([web.md](web.md)) |
 | Concurrency | `run.parallel_models` is 1 because the gateway limits capacity |
 | Errors | No retries; stream errors void the question; consecutive capacity errors abort the run early ([metrics.md](metrics.md#errors)) |
-| Writing dimensions | `write_zh` and `write_en`, 6 questions each, scored separately. Rule checks give `score`; a judge model gives a separate `quality` ([benchmark.md](benchmark.md#writing-and-judge)) |
+| Writing dimensions | `write_zh` and `write_en`, 8 questions each covering constrained replies, notices, summaries, guides, stories, essays and promotional copy. Rule checks give `score`; a judge model gives a separate `quality` ([benchmark.md](benchmark.md#writing-and-judge)) |
 | Self-judging | Allowed: a model that is the judge still gets a `quality` ([benchmark.md](benchmark.md#writing-and-judge)) |
 | Dimension selection | Global default and per model, multi-select, all checked by default ([config.md](config.md#per-model-settings)) |
 | Judge | Selectable in the admin console, default `claude-opus-5-5`; effort default `low`. Judge cost and time recorded separately ([config.md](config.md#global-settings)) |
@@ -61,3 +61,7 @@
 ## Open
 
 None.
+
+## Dataset history
+
+| Dataset v3 writing set | The eight writing templates and their seeded vocabularies are fixed by the user request; future template changes require another dataset version bump. |

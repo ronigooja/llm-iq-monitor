@@ -48,7 +48,7 @@ Gateway behaviour behind this is taken from CLIProxyAPI v8.0.48 source and docs;
 
 Estimates, not measurements. Replace with measured numbers after the first full cycle.
 
-Per run (58 questions, all dimensions): input about 10k tokens; output about 20k without extended thinking, about 80k with it; hard cap `58 × run.max_tokens` (about 0.95M at the default). Writing questions add 12 judge calls per run, each about 1k input and under 1k output tokens at `judge.effort = low` (estimate). A run with fewer dimensions scales down proportionally.
+Per run (62 questions, all dimensions): input about 10k tokens; output about 20k without extended thinking, about 80k with it; hard cap `62 × run.max_tokens` (about 1.0M at the default). Writing questions add 16 judge calls per run, each about 1k input and under 1k output tokens at `judge.effort = low` (estimate). A run with fewer dimensions scales down proportionally.
 
 ```
 runs per day = sum over enabled models of (24 / interval_h × selected efforts)

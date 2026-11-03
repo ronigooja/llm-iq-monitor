@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 DIMS = ("reasoning", "code", "instruction", "write_zh", "write_en", "ui")
 LEGACY_DIMS = ("trap", "math", "logic", "science")
 EFFORTS = ("low", "medium", "high")
-DIM_COUNTS = {"reasoning": 18, "code": 12, "instruction": 14, "write_zh": 6, "write_en": 6, "ui": 2,
+DIM_COUNTS = {"reasoning": 18, "code": 12, "instruction": 14, "write_zh": 8, "write_en": 8, "ui": 2,
               "trap": 12, "math": 12, "logic": 12, "science": 12}
 
 
