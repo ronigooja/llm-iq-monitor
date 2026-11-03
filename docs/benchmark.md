@@ -6,12 +6,12 @@
 
 | Key | Use it when the task is | Questions | Kind | Scoring |
 |---|---|---:|---|---|
-| `reasoning` | multi-step reasoning, avoiding common-sense traps, reading tables and figures, not making things up | 18 | answer line | exact / int / fraction |
-| `code` | writing a function, reading code, fixing a bug | 12 | code block | hidden tests in sandbox |
-| `instruction` | following a strict output format, extracting fields into JSON | 14 | free text | rule checks, all must pass |
+| `reasoning` | multi-step logic and calculation (ordering, probability, calendar), reading tables, avoiding traps, admitting when the answer is unknown | 18 | answer line | exact / int / fraction |
+| `code` | writing algorithmic functions and fixing bugs | 12 | code block | hidden tests in sandbox |
+| `instruction` | following a strict output format under several rules at once, extracting fields into JSON | 14 | free text | rule checks, all must pass |
 | `write_zh` | Chinese writing under explicit constraints: replies, notices, summaries, guides, stories, essays, promotional copy | 8 | free text | rule checks, all must pass; plus judged `quality` |
 | `write_en` | English writing under explicit constraints: replies, notices, summaries, guides, stories, essays, promotional copy | 8 | free text | rule checks, all must pass; plus judged `quality` |
-| `ui` | drawing and visual layout, shown as SVG | 2 | SVG source | human star rating |
+| `ui` | drawing an illustration as SVG | 2 | SVG source | human star rating |
 
 The "use it when" column is exposed by the API ([api.md](api.md#queries)) so a router can map a task to a dimension.
 
