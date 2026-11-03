@@ -8,6 +8,13 @@
   const clone = value => JSON.parse(JSON.stringify(value));
   let state = null;
   let original = null;
+  let lastStatus = null;
+  let statusTimer = null;
+  const STATUS_INTERVAL_MS = 15000;
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
 
   function getAt(object, path) {
     return path.split('.').reduce((value, key) => value == null ? undefined : value[key], object);
@@ -21,15 +28,19 @@
   function selectedValues(root) {
     return $$('input:checked', root).map(input => input.value);
   }
-  function collectSettings(root) {
+  function applyFieldInputs(root, inputs) {
     const settings = clone(root);
-    $$('[data-field]').forEach(input => {
+    inputs.forEach(input => {
       const field = input.dataset.field;
-      if (input.type === 'checkbox') return;
+      if (input.type === 'checkbox') { setAt(settings, field, input.checked); return; }
       let value = input.value;
       if (input.type === 'number') value = value === '' ? null : Number(value);
       setAt(settings, field, value);
     });
+    return settings;
+  }
+  function collectSettings(root) {
+    const settings = applyFieldInputs(root, $$('[data-field]'));
     settings.models.default_dims = selectedValues($('#default-dims'));
     settings.models.default_efforts = selectedValues($('#default-efforts'));
     $$('#models-table tbody tr[data-model]').forEach(row => {
@@ -84,7 +95,30 @@
   function formatModelPrice(model) {
     return model.price_in == null || model.price_out == null ? '—' : `${formatPrice(model.price_in)} / ${formatPrice(model.price_out)}`;
   }
-  window.adminHelpers = { collectSettings, bulkApply, bulkValues, errorFields, formatCount, weekly, formatPrice, formatModelPrice };
+  function formatTime(seconds, locale) {
+    return seconds == null ? '—' : new Date(Number(seconds) * 1000).toLocaleString(locale);
+  }
+  function statusCells(entry, t, locale) {
+    const run = entry.run;
+    const kind = run ? 'running' : entry.deferred ? 'deferred' : entry.next_due_at != null ? 'waiting' : 'idle';
+    const labels = { running: 'statusRunning', deferred: 'statusDeferred', waiting: 'statusWaiting', idle: 'statusIdle' };
+    const status = {
+      kind,
+      label: t(labels[kind], run ? { n: run.question_index, total: run.question_total } : {}),
+      progress: run ? { value: run.question_index, max: run.question_total } : null
+    };
+    const last = entry.last_run ? `${entry.last_run.status} · ${formatTime(entry.last_run.finished_at, locale)}` : '—';
+    const next = formatTime(entry.next_due_at, locale);
+    if (!entry.probe) return { status, last, next, probe: { state: 'none', label: '—', detail: '—' } };
+    const probe = entry.probe;
+    const state = ['busy', 'idle', 'unknown'].includes(probe.state) ? probe.state : 'unknown';
+    const parts = [];
+    if (probe.last_ok != null) parts.push(t(probe.last_ok ? 'probeOk' : 'probeFail'));
+    if (probe.last_latency_s != null) parts.push(t('probeLatency', { s: Number(probe.last_latency_s).toFixed(1) }));
+    if (probe.availability != null) parts.push(t('probeDetail', { pct: `${(Number(probe.availability) * 100).toFixed(1)}%`, n: probe.samples }));
+    return { status, last, next, probe: { state, label: t(`state${state[0].toUpperCase()}${state.slice(1)}`), detail: parts.join(' · ') || '—' } };
+  }
+  window.adminHelpers = { collectSettings, applyFieldInputs, bulkApply, bulkValues, errorFields, formatCount, weekly, formatPrice, formatModelPrice, statusCells };
   if (typeof document.addEventListener !== 'function') return;
 
   function tr(key, vars) { return window.i18n.t(`admin.${key}`, vars); }
@@ -116,10 +150,12 @@
   function fieldValue(path) { return getAt(state.settings, path); }
   function populateField(path) {
     const input = $(`[data-field="${path}"]`);
-    if (input) input.value = fieldValue(path) == null ? '' : fieldValue(path);
+    if (!input) return;
+    if (input.type === 'checkbox') input.checked = Boolean(fieldValue(path));
+    else input.value = fieldValue(path) == null ? '' : fieldValue(path);
   }
   function renderSettings() {
-    ['gateway.base_url', 'gateway.models_url', 'schedule.heartbeat_cron', 'models.default_interval_h', 'run.parallel_models', 'run.timeout_s', 'run.max_tokens', 'run.max_attempts', 'run.retry_delay_s', 'net.rtt_fallback_ms', 'retention.reply_days'].forEach(populateField);
+    ['gateway.base_url', 'gateway.models_url', 'schedule.heartbeat_cron', 'schedule.defer_when_busy', 'models.default_interval_h', 'run.parallel_models', 'run.timeout_s', 'run.max_tokens', 'run.max_attempts', 'run.retry_delay_s', 'net.rtt_fallback_ms', 'retention.reply_days', 'availability.enabled', 'availability.probe_effort', 'availability.probe_timeout_s', 'availability.probe_idle_every_min', 'availability.probe_busy_every_min', 'availability.classify_every_min', 'availability.state_window_min', 'availability.busy_fail_rate', 'availability.busy_latency_factor', 'availability.window_min', 'availability.min_samples', 'availability.retention_days'].forEach(populateField);
     optionCheckboxes($('#default-dims'), DIMENSIONS, state.settings.models.default_dims || DIMENSIONS);
     optionCheckboxes($('#default-efforts'), EFFORTS, state.settings.models.default_efforts || ['medium'], 'effort');
     $('#heartbeat-next').textContent = (state.heartbeat_next || []).join(' · ') || '—';
@@ -181,9 +217,37 @@
       const error = document.createElement('span'); error.className = 'field-error'; error.textContent = mapped[field]; input.insertAdjacentElement('afterend', error);
     });
   }
+  function renderStatus() {
+    const body = $('#status-table tbody');
+    if (!lastStatus) { body.innerHTML = `<tr><td colspan="6" class="muted">${escapeHtml(tr('statusFailed'))}</td></tr>`; return; }
+    $('#runner-stopped').hidden = !(lastStatus.runner && lastStatus.runner.running === false);
+    const models = lastStatus.models || [];
+    if (!models.length) { body.innerHTML = `<tr><td colspan="6" class="muted">${escapeHtml(tr('statusEmpty'))}</td></tr>`; return; }
+    const locale = window.i18n.lang() === 'zh' ? 'zh-CN' : 'en';
+    body.innerHTML = models.map(entry => {
+      const cells = window.adminHelpers.statusCells(entry, tr, locale);
+      const bar = cells.status.progress ? `<progress max="${cells.status.progress.max}" value="${cells.status.progress.value}"></progress>` : '';
+      return `<tr><th scope="row">${escapeHtml(entry.model)}</th><td>${escapeHtml(entry.effort)}</td><td><span class="status-chip status-${cells.status.kind}">${escapeHtml(cells.status.label)}</span>${bar}</td><td>${escapeHtml(cells.last)}</td><td>${escapeHtml(cells.next)}</td><td><span class="probe-chip probe-${cells.probe.state}">${escapeHtml(cells.probe.label)}</span> <span class="muted">${escapeHtml(cells.probe.detail)}</span></td></tr>`;
+    }).join('');
+  }
+  function refreshStatus() {
+    return request('/admin/api/status').then(next => {
+      lastStatus = next;
+      renderStatus();
+      setMessage('#status-updated', tr('statusUpdated', { time: new Date().toLocaleTimeString(window.i18n.lang() === 'zh' ? 'zh-CN' : 'en') }));
+    }).catch(error => {
+      if (error.status === 401) { showLogin(true); setMessage('#login-message', tr('unauthorized')); return; }
+      lastStatus = null;
+      renderStatus();
+    });
+  }
+  function startStatusPolling() {
+    if (statusTimer) return;
+    statusTimer = setInterval(() => { if (!document.hidden && state) refreshStatus(); }, STATUS_INTERVAL_MS);
+  }
   function loadState() {
     setMessage('#load-message', tr('loading'));
-    return request('/admin/api/state').then(next => { state = next; original = clone(next); renderSettings(); showLogin(false); setMessage('#load-message', ''); }).catch(error => {
+    return request('/admin/api/state').then(next => { state = next; original = clone(next); renderSettings(); showLogin(false); setMessage('#load-message', ''); refreshStatus(); startStatusPolling(); }).catch(error => {
       if (error.status === 401) { showLogin(true); setMessage('#load-message', tr('unauthorized')); } else setMessage('#load-message', tr('loadFailed'));
     });
   }
@@ -222,7 +286,9 @@
     resetBulk();
     markDirty();
   }
-  document.addEventListener('langchange', () => { if (state) renderSettings(); window.i18n.apply(); });
+  document.addEventListener('langchange', () => { if (state) renderSettings(); if (state) renderStatus(); window.i18n.apply(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && state) refreshStatus(); });
+  $('#refresh-status').addEventListener('click', refreshStatus);
   $('#login-form').addEventListener('submit', login);
   $('#logout').addEventListener('click', logout);
   $('#save').addEventListener('click', save);

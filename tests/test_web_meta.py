@@ -24,6 +24,10 @@ PAGES = {
         "SVG 绘图样本 · LLM IQ Monitor",
         "SVG drawings by each model, such as a pelican riding a bicycle. 各模型生成的 SVG 绘图样本，例如骑自行车的鹈鹕。",
     ),
+    "/availability": (
+        "可用性 Availability · LLM IQ Monitor",
+        "Current probe availability and state of each model and effort, with history. 各模型和推理档位的当前探测可用率、状态与历史。",
+    ),
     "/api": (
         "API 参考 · LLM IQ Monitor",
         "Public read-only JSON API for scores, history and dimensions. 公开只读 JSON 接口：评分、历史、能力维度。",
@@ -89,16 +93,16 @@ def test_meta_keys_are_registered_for_both_languages_and_each_page():
     source = (ROOT / "web/i18n.js").read_text()
     assert "registry[language]['meta.title']" in source
     assert "registry[language]['meta.description']" in source
-    for page in ("scores", "compare", "ui", "api"):
+    for page in ("scores", "compare", "ui", "availability", "api"):
         assert f"{page}:" in source
     assert re.search(r"en: \{ title:'[^']*[A-Za-z]", source)
     assert re.search(r"zh: \{ title:'[^']*[\u3400-\u9fff]", source)
 
 
 @pytest.mark.asyncio
-async def test_all_page_assets_use_version_17(client):
+async def test_all_page_assets_use_version_18(client):
     for path in PAGES:
         body = (await client.get(path)).text
         versions = set(re.findall(r"/static/[\w./-]+\?v=(\d+)", body))
-        assert versions == {"17"}, (path, versions)
-        assert "?v=12" not in body
+        assert versions == {"18"}, (path, versions)
+        assert "?v=17" not in body

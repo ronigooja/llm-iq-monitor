@@ -10,7 +10,7 @@
     try { rows = await api('series', { model, effort, dim, from }); } catch (_) { target.textContent = tr('status.loadSeries'); return; }
     if (el.dataset.effort !== effort || el.dataset.dim !== dim) return;
     target.replaceChildren(); const last = rows.at(-1);
-    el.querySelector('.meta').textContent = last ? tr('availability', {n:num(last.availability * 100, 0), date:when(last.t)}) : tr('status.noDataRangeShort');
+    el.querySelector('.meta').textContent = last ? tr('card.lastRun', {date:when(last.t)}) : tr('status.noDataRangeShort');
     if (!rows.length) { target.textContent = tr('status.noDataRange'); return; }
     const ui = dim === 'ui', showQuality = !ui && ['write_zh','write_en'].includes(dim) && rows.some(r => r.quality != null);
     const data = [rows.map(r => r.t), rows.map(r => r.score), ...(ui ? [] : [rows.map(r => r.latency_p50)]), ...(showQuality ? [rows.map(r => r.quality)] : [])];

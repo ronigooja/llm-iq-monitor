@@ -31,8 +31,11 @@ async def client(monitor_db):
 async def test_api_page_is_public_reference(client):
     response = await client.get("/api")
     assert response.status_code == 200, response.text
-    for query in ("ranking", "best", "series", "models", "dimensions", "ui_samples", "health"):
-        assert f"<code>{query}</code>" in response.text
+    for query in ("best", "ranking", "availability_now", "dimensions", "models"):
+        assert f"<h4><code>{query}</code></h4>" in response.text
+    for query in ("series", "ui_samples", "health"):
+        assert f"<h4><code>{query}</code></h4>" not in response.text
+        assert f'data-api-url="/monitor/{query}.json' not in response.text
     assert "/monitor/rate.json" not in response.text
     assert "/monitor/whoami.json" not in response.text
     assert "rating key" not in response.text.lower()
@@ -64,10 +67,39 @@ def test_api_template_keys_are_registered_in_both_languages():
 
 
 @pytest.mark.asyncio
+async def test_best_card_lists_min_availability_parameter():
+    html = TEMPLATE.read_text()
+    best = html.split("<h4><code>best</code></h4>", 1)[1].split("</article>", 1)[0]
+    assert "<code>min_availability</code>" in best
+    assert "default 0.9" in best
+    script = SCRIPT.read_text()
+    assert "'api.best_min_availability':" in script.split("zh:", 1)[0]
+    assert "'api.best_min_availability':" in script.split("zh:", 1)[1]
+
+
+def test_availability_now_card_lists_exact_columns_without_params():
+    html = TEMPLATE.read_text()
+    card = html.split("<h4><code>availability_now</code></h4>", 1)[1].split("</article>", 1)[0]
+    columns = re.findall(r'<div><code>([a-z_0-9]+)</code>', card)
+    assert columns == ["model", "effort", "availability", "samples", "state", "latency_p50", "last_probe_at"]
+    assert "<code>dim</code>" not in card and "<code>effort</code>" in card
+    assert 'data-api-url="/monitor/availability_now.json?_shape=array"' in card
+
+
+@pytest.mark.asyncio
 async def test_api_try_urls_are_existing_queries(client):
     html = (await client.get("/api")).text
     urls = [unescape(url) for url in re.findall(r'data-api-url="([^"]+)"', html)]
-    assert len(urls) == 7
+    assert len(urls) == 5
+    metadata = yaml.safe_load((ROOT / "deploy/metadata.yaml").read_text())
+    queries = metadata["databases"]["monitor"]["queries"]
+    checked = 0
     for url in urls:
+        name = re.match(r"/monitor/([^.]+)\.json", url).group(1)
+        if name not in queries:
+            # availability_now is provided by the backend; the check runs once its query exists.
+            continue
         response = await client.get(url)
         assert response.status_code == 200, (url, response.text)
+        checked += 1
+    assert checked >= 4

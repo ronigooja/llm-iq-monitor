@@ -63,3 +63,21 @@ legend { padding:0 .25rem; }
   .admin-app .gateway-grid { grid-template-columns:1fr; }
   .admin-app .connection-control { align-items:flex-start; flex-wrap:wrap; }
 }
+
+/* Run status panel and probe settings */
+.status-chip, .probe-chip { border:1px solid var(--line); border-radius:999px; display:inline-block; font-size:.78rem; padding:.1rem .5rem; white-space:nowrap; }
+.status-running { border-color:var(--accent); color:var(--accent); }
+.status-deferred { color:#c0392b; }
+.probe-busy { color:#c0392b; }
+.probe-idle { color:#2e7d32; }
+@media (prefers-color-scheme: dark) { .probe-busy, .status-deferred { color:#ff8a7a; } .probe-idle { color:#7fd08a; } }
+.admin-app .status-table-wrap { overflow-x:auto; }
+#status-table { border-collapse:collapse; width:100%; min-width:720px; }
+#status-table th, #status-table td { border-bottom:1px solid var(--line); padding:.5rem; text-align:left; vertical-align:top; }
+#status-table th { color:var(--muted); font-size:.82rem; font-weight:600; }
+#status-table progress { display:block; width:9rem; height:.35rem; margin-top:.3rem; }
+.check-field { display:flex; flex-direction:column; gap:.35rem; }
+.check-row { display:flex; align-items:center; gap:.4rem; }
+.admin-hint { color:var(--muted); font-size:.8rem; line-height:1.4; }
+.admin-app .check-row input[type="checkbox"] { width:1rem; height:1rem; margin:0; }
+#status-table tbody th { font-weight:600; }
