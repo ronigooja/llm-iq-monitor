@@ -38,7 +38,7 @@ Precedence, highest first: environment variable `GATEWAY_API_KEY` (key only) →
 
 ## Availability settings
 
-`availability.enabled` (default `true`) runs independent probes. `availability.probe_effort` defaults to `low`; timeout is 30 seconds; idle/unknown and busy intervals are 30 and 10 minutes; classification runs every 10 minutes over 60 minutes. Busy thresholds are failure rate 0.5 or latency factor 3.0. Current availability uses a 180-minute window, requires 3 samples, and probes are retained 30 days. `schedule.defer_when_busy` defaults to `true`.
+`availability.enabled` (default `true`) runs independent probes. `availability.probe_effort` defaults to `low`; timeout is 30 seconds; idle/unknown and busy intervals are 120 and 30 minutes; classification runs every 30 minutes over 240 minutes. Busy thresholds are failure rate 0.5 or latency factor 3.0. Current availability uses a 720-minute window, requires 2 samples, and probes are retained 30 days. `schedule.defer_when_busy` defaults to `true`.
 
 ## Per-model settings
 

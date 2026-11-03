@@ -167,14 +167,14 @@ class Availability(BaseModel):
     enabled: bool = True
     probe_effort: str = "low"
     probe_timeout_s: int = Field(default=30, ge=1)
-    probe_idle_every_min: int = Field(default=30, ge=1)
-    probe_busy_every_min: int = Field(default=10, ge=1)
-    classify_every_min: int = Field(default=10, ge=1)
-    state_window_min: int = Field(default=60, ge=1)
+    probe_idle_every_min: int = Field(default=120, ge=1)
+    probe_busy_every_min: int = Field(default=30, ge=1)
+    classify_every_min: int = Field(default=30, ge=1)
+    state_window_min: int = Field(default=240, ge=1)
     busy_fail_rate: float = Field(default=0.5, ge=0, le=1)
     busy_latency_factor: float = Field(default=3.0, ge=1)
-    window_min: int = Field(default=180, ge=1)
-    min_samples: int = Field(default=3, ge=1)
+    window_min: int = Field(default=720, ge=1)
+    min_samples: int = Field(default=2, ge=1)
     retention_days: int = Field(default=30, ge=1)
 
     @field_validator("probe_effort")
