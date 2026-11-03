@@ -16,7 +16,7 @@ Public, read-only, JSON, no authentication. Provided by [Datasette](https://data
 
 | Name | Parameters | Returns |
 |---|---|---|
-| `best` | `score_tolerance`, `price_tolerance`, `exclude` (all optional) | Exactly one row for each of the six dimensions, across all efforts; score tolerance keeps near-top scores, price tolerance keeps near-cheapest scored candidates, then the lowest non-null latency wins. `model` and `effort` are null when no eligible candidate remains |
+| `best` | `score_tolerance`, `price_tolerance`, `exclude`, `exclude_reasoning`, `exclude_code`, `exclude_instruction`, `exclude_write_zh`, `exclude_write_en`, `exclude_ui` (all optional) | Exactly one row for each of the six dimensions, across all efforts; score tolerance keeps near-top scores, price tolerance keeps near-cheapest scored candidates, then the lowest non-null latency wins. `exclude` removes matching model IDs from every dimension; each `exclude_<dimension>` removes matching model IDs only from that dimension. Values are comma-separated, trimmed, case-insensitive substrings; empty pieces are ignored. `model` and `effort` are null when no eligible candidate remains |
 | `ranking` | `dim` (required: a dimension key, including `write_zh` and `write_en`), `effort` (optional) | Ranking for one capability: the latest finished run of each model × effort that ran the dimension, ordered by score descending, then `latency_p50` ascending, null scores last |
 | `series` | `model`, `effort`, `dim` (all required), `from`, `to`, `dataset_version` (optional) | History points, time ascending, at most 2000 rows |
 | `models` | none | One row per model × effort that has finished runs |
@@ -40,6 +40,8 @@ Runs with status `unsupported`, `aborted` or `running` are excluded from `rankin
 ### Router usage
 
 Call `best` to get exactly six rows in display order. Check `model` for null before routing. It considers every model × effort in the current dataset version, removes excluded model ids and null scores, keeps scores within `score_tolerance` points of the dimension maximum, then applies `price_tolerance` percent to the cheapest comparable `cost_per_correct` candidate (or keeps all when none has a price). The final tie-break is lowest non-null `latency_p50`, then model and effort ascending. Invalid numeric parameters use their defaults: 0 score points and 30 percent.
+
+Example: `/monitor/best.json?exclude_ui=gpt&_shape=array` excludes model IDs containing `gpt` only from the `ui` recommendation.
 
 ## Exposure rules
 

@@ -90,7 +90,13 @@ databases:
                 THEN CAST(trim(:price_tolerance) AS REAL)
                 ELSE 30.0
               END AS price_tolerance,
-              COALESCE(:exclude, '') AS exclude_text
+              COALESCE(:exclude, '') AS exclude_text,
+              COALESCE(:exclude_reasoning, '') AS exclude_reasoning_text,
+              COALESCE(:exclude_code, '') AS exclude_code_text,
+              COALESCE(:exclude_instruction, '') AS exclude_instruction_text,
+              COALESCE(:exclude_write_zh, '') AS exclude_write_zh_text,
+              COALESCE(:exclude_write_en, '') AS exclude_write_en_text,
+              COALESCE(:exclude_ui, '') AS exclude_ui_text
           ), exclude_parts(keyword, rest) AS (
             SELECT trim(substr(exclude_text, 1, instr(exclude_text || ',', ',') - 1)),
                    substr(exclude_text || ',', instr(exclude_text || ',', ',') + 1)
@@ -98,6 +104,54 @@ databases:
             UNION ALL
             SELECT trim(substr(rest, 1, instr(rest, ',') - 1)), substr(rest, instr(rest, ',') + 1)
             FROM exclude_parts
+            WHERE rest <> ''
+          ), exclude_reasoning_parts(keyword, rest) AS (
+            SELECT trim(substr(exclude_reasoning_text, 1, instr(exclude_reasoning_text || ',', ',') - 1)),
+                   substr(exclude_reasoning_text || ',', instr(exclude_reasoning_text || ',', ',') + 1)
+            FROM input
+            UNION ALL
+            SELECT trim(substr(rest, 1, instr(rest, ',') - 1)), substr(rest, instr(rest, ',') + 1)
+            FROM exclude_reasoning_parts
+            WHERE rest <> ''
+          ), exclude_code_parts(keyword, rest) AS (
+            SELECT trim(substr(exclude_code_text, 1, instr(exclude_code_text || ',', ',') - 1)),
+                   substr(exclude_code_text || ',', instr(exclude_code_text || ',', ',') + 1)
+            FROM input
+            UNION ALL
+            SELECT trim(substr(rest, 1, instr(rest, ',') - 1)), substr(rest, instr(rest, ',') + 1)
+            FROM exclude_code_parts
+            WHERE rest <> ''
+          ), exclude_instruction_parts(keyword, rest) AS (
+            SELECT trim(substr(exclude_instruction_text, 1, instr(exclude_instruction_text || ',', ',') - 1)),
+                   substr(exclude_instruction_text || ',', instr(exclude_instruction_text || ',', ',') + 1)
+            FROM input
+            UNION ALL
+            SELECT trim(substr(rest, 1, instr(rest, ',') - 1)), substr(rest, instr(rest, ',') + 1)
+            FROM exclude_instruction_parts
+            WHERE rest <> ''
+          ), exclude_write_zh_parts(keyword, rest) AS (
+            SELECT trim(substr(exclude_write_zh_text, 1, instr(exclude_write_zh_text || ',', ',') - 1)),
+                   substr(exclude_write_zh_text || ',', instr(exclude_write_zh_text || ',', ',') + 1)
+            FROM input
+            UNION ALL
+            SELECT trim(substr(rest, 1, instr(rest, ',') - 1)), substr(rest, instr(rest, ',') + 1)
+            FROM exclude_write_zh_parts
+            WHERE rest <> ''
+          ), exclude_write_en_parts(keyword, rest) AS (
+            SELECT trim(substr(exclude_write_en_text, 1, instr(exclude_write_en_text || ',', ',') - 1)),
+                   substr(exclude_write_en_text || ',', instr(exclude_write_en_text || ',', ',') + 1)
+            FROM input
+            UNION ALL
+            SELECT trim(substr(rest, 1, instr(rest, ',') - 1)), substr(rest, instr(rest, ',') + 1)
+            FROM exclude_write_en_parts
+            WHERE rest <> ''
+          ), exclude_ui_parts(keyword, rest) AS (
+            SELECT trim(substr(exclude_ui_text, 1, instr(exclude_ui_text || ',', ',') - 1)),
+                   substr(exclude_ui_text || ',', instr(exclude_ui_text || ',', ',') + 1)
+            FROM input
+            UNION ALL
+            SELECT trim(substr(rest, 1, instr(rest, ',') - 1)), substr(rest, instr(rest, ',') + 1)
+            FROM exclude_ui_parts
             WHERE rest <> ''
           ),
           dimensions AS (
@@ -146,9 +200,33 @@ databases:
             FROM candidates c
             WHERE c.score IS NOT NULL
               AND NOT EXISTS (
-                SELECT 1 FROM exclude_parts e
-                WHERE e.keyword <> '' AND instr(lower(c.model), lower(e.keyword)) > 0
-              )
+               SELECT 1 FROM exclude_parts e
+                 WHERE e.keyword <> '' AND instr(lower(c.model), lower(e.keyword)) > 0
+               )
+               AND NOT EXISTS (
+                 SELECT 1 FROM exclude_reasoning_parts e
+                 WHERE c.dim = 'reasoning' AND e.keyword <> '' AND instr(lower(c.model), lower(e.keyword)) > 0
+               )
+               AND NOT EXISTS (
+                 SELECT 1 FROM exclude_code_parts e
+                 WHERE c.dim = 'code' AND e.keyword <> '' AND instr(lower(c.model), lower(e.keyword)) > 0
+               )
+               AND NOT EXISTS (
+                 SELECT 1 FROM exclude_instruction_parts e
+                 WHERE c.dim = 'instruction' AND e.keyword <> '' AND instr(lower(c.model), lower(e.keyword)) > 0
+               )
+               AND NOT EXISTS (
+                 SELECT 1 FROM exclude_write_zh_parts e
+                 WHERE c.dim = 'write_zh' AND e.keyword <> '' AND instr(lower(c.model), lower(e.keyword)) > 0
+               )
+               AND NOT EXISTS (
+                 SELECT 1 FROM exclude_write_en_parts e
+                 WHERE c.dim = 'write_en' AND e.keyword <> '' AND instr(lower(c.model), lower(e.keyword)) > 0
+               )
+               AND NOT EXISTS (
+                 SELECT 1 FROM exclude_ui_parts e
+                 WHERE c.dim = 'ui' AND e.keyword <> '' AND instr(lower(c.model), lower(e.keyword)) > 0
+               )
           ), score_limit AS (
             SELECT f.*, MAX(f.score) OVER (PARTITION BY f.dim) AS max_score,
                    input.score_tolerance, input.price_tolerance
@@ -180,7 +258,7 @@ databases:
             WHEN 'reasoning' THEN 1 WHEN 'code' THEN 2 WHEN 'instruction' THEN 3
             WHEN 'write_zh' THEN 4 WHEN 'write_en' THEN 5 WHEN 'ui' THEN 6
           END
-        params: [score_tolerance, price_tolerance, exclude]
+        params: [score_tolerance, price_tolerance, exclude, exclude_reasoning, exclude_code, exclude_instruction, exclude_write_zh, exclude_write_en, exclude_ui]
       series:
         allow: true
         sql: |
