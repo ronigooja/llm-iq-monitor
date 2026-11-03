@@ -71,4 +71,4 @@ None.
 ## Dataset history
 
 | Dataset v3 writing set | The eight writing templates and their seeded vocabularies are fixed by the user request; future template changes require another dataset version bump. |
-| Dataset v4 scoring | v4 supersedes the earlier decisions “no retries” and “errored counts as wrong”; question templates remain unchanged. |
+| Dataset v4 scoring and code set | v4 supersedes the earlier decisions “no retries” and “errored counts as wrong”; before release, v4 also replaces the 12 saturated code questions with a harder mixed algorithmic set ([benchmark.md](benchmark.md#dimensions)). |
