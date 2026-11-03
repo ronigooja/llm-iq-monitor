@@ -10,7 +10,12 @@ from fixtures import monitor_db  # noqa: F401
 
 
 ROOT = Path(__file__).parents[1]
-TEMPLATES = [ROOT / "deploy/templates/index.html", ROOT / "deploy/templates/pages/compare.html", ROOT / "deploy/templates/pages/ui.html"]
+TEMPLATES = [
+    ROOT / "deploy/templates/index.html",
+    ROOT / "deploy/templates/pages/compare.html",
+    ROOT / "deploy/templates/pages/ui.html",
+    ROOT / "deploy/templates/pages/availability.html",
+]
 
 
 def _registry_keys(language):
@@ -54,12 +59,12 @@ async def web_client(monitor_db):
 
 @pytest.mark.asyncio
 async def test_web_pages_have_i18n_header_and_ui_csp(web_client):
-    for path in "/", "/compare", "/ui":
+    for path in "/", "/compare", "/ui", "/availability":
         response = await web_client.get(path)
         assert response.status_code == 200, (path, response.text)
         body = response.text
         assert 'id="lang-switch"' in body
-        assert 'href="/api"' in body
+        assert 'href="/api"' in body and 'href="/availability"' in body
         versions = set(re.findall(r"/static/[\w./-]+\?v=(\d+)", body))
         assert '/static/i18n.js?v=' in body and len(versions) == 1, versions
     ui = (await web_client.get("/ui")).text
