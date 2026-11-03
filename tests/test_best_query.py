@@ -107,6 +107,33 @@ async def test_best_empty_and_invalid_numeric_params_use_defaults(client, monito
 
 
 @pytest.mark.asyncio
+async def test_best_per_dimension_exclusions_are_local_and_combine_with_global(client, monitor_db):
+    add_candidate_db(monitor_db)
+
+    rows = {row["dim"]: row for row in await best(client, exclude_reasoning="GAMMA")}
+    assert rows["reasoning"]["model"] == "DELTA-cheap"
+    assert rows["code"]["model"] == "gamma-fast"
+
+    rows = {row["dim"]: row for row in await best(client, exclude_code=" gamma , DELTA ")}
+    assert rows["reasoning"]["model"] == "gamma-fast"
+    assert rows["code"]["model"] is None
+    assert rows["code"]["effort"] is None
+
+    rows = {row["dim"]: row for row in await best(client, exclude="gamma", exclude_code=" DELTA ")}
+    assert rows["reasoning"]["model"] == "DELTA-cheap"
+    assert rows["code"]["model"] is None
+    assert rows["ui"]["model"] == "DELTA-cheap"
+
+
+@pytest.mark.asyncio
+async def test_best_per_dimension_exclusions_ignore_empty_pieces(client, monitor_db):
+    add_candidate_db(monitor_db)
+    default = await best(client)
+    excluded = await best(client, exclude_ui=" ,  ", exclude_reasoning=" , , ")
+    assert excluded == default
+
+
+@pytest.mark.asyncio
 async def test_best_candidates_match_ranking_for_each_dimension(client, monitor_db):
     add_candidate_db(monitor_db)
     best_rows = {row["dim"]: row for row in await best(client, score_tolerance="0", price_tolerance="100000")}
