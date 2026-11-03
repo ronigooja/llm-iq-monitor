@@ -444,8 +444,9 @@ def _bug_refs(name: str, args: tuple) -> Any:
 
 def _bug_cases(name: str, r) -> list[tuple]:
     if name == "distinct_window_invariant":
-        cases = [([], 2), ([1], 1), ([1, 1, 2, 2], 1), ([1, 2, 1, 3, 2], 2), ([1, 2], 0), (["x", "x"], 1)]
-        cases += [(_ints(r, r.randint(10, 25), 0, 4), r.randint(1, 3)) for _ in range(3)]
+        cases = [([], 2), ([1], 1), ([1, 1, 2, 2], 1), ([1, 2, 1, 3, 2], 2),
+                 ([1, 1, 2, 2, 3], 2), ([1, 2], 0), (["x", "x"], 1)]
+        cases += [(_ints(r, r.randint(10, 25), 0, 4), r.randint(1, 3)) for _ in range(2)]
         cases.append(([_ % 200 for _ in range(150_000)], 40))
     else:
         cases = [(2, [[0, 1, 9]], 0, 1), (3, [[0, 1, 8], [1, 2, 8], [0, 2, 20]], 0, 2),
