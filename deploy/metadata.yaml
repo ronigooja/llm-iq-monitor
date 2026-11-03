@@ -307,26 +307,35 @@ databases:
       availability_history:
         allow: true
         sql: |
-          WITH input AS (
+          WITH RECURSIVE nums(n) AS (
+            SELECT 0 UNION ALL SELECT n+1 FROM nums WHERE n < 29
+          ), input AS (
             SELECT CASE WHEN CAST(:days AS INTEGER) BETWEEN 1 AND 30 THEN CAST(:days AS INTEGER) ELSE 1 END AS days
+          ), runtime AS (
+            SELECT COALESCE((SELECT now FROM availability_runtime LIMIT 1), CAST(strftime('%s','now') AS REAL)) AS now,
+                   COALESCE((SELECT interval_s FROM availability_runtime LIMIT 1), 3600.0) AS interval_s
           ), bounds AS (
-            SELECT strftime('%s','now') - days*86400 AS start_t, days FROM input
+            SELECT days, CASE WHEN days=1 THEN 3600.0 ELSE 86400.0 END AS width,
+                   CAST(now / CASE WHEN days=1 THEN 3600.0 ELSE 86400.0 END AS INTEGER)
+                     * CASE WHEN days=1 THEN 3600.0 ELSE 86400.0 END AS current_start,
+                   now, interval_s FROM input CROSS JOIN runtime
           ), buckets AS (
-            SELECT start_t + (n * CASE WHEN days=1 THEN 3600 ELSE 86400 END) AS bucket_start,
-                   CASE WHEN days=1 THEN 3600 ELSE 86400 END AS width
-            FROM bounds JOIN (WITH RECURSIVE nums(n) AS (SELECT 0 UNION ALL SELECT n+1 FROM nums WHERE n<719) SELECT n FROM nums)
-            ON n < CASE WHEN days=1 THEN 24 ELSE days END
+            SELECT current_start - ((CASE WHEN days=1 THEN 23 ELSE days-1 END - nums.n) * width) AS bucket_start, width, now, interval_s
+            FROM bounds CROSS JOIN nums
+            WHERE nums.n < CASE WHEN days=1 THEN 24 ELSE days END
           ), targets AS (
             SELECT DISTINCT model, effort FROM probes WHERE (:model='' OR model=:model) AND (:effort='' OR effort=:effort)
           ), points AS (
             SELECT p.model,p.effort,p.t,p.ok,
-                   COALESCE(LEAD(p.t) OVER (PARTITION BY p.model,p.effort ORDER BY p.t), strftime('%s','now')) AS next_t
-            FROM probes p WHERE (:model='' OR p.model=:model) AND (:effort='' OR p.effort=:effort)
+                   COALESCE(LEAD(p.t) OVER (PARTITION BY p.model,p.effort ORDER BY p.t), b.now) AS next_t,
+                   b.now, b.interval_s
+            FROM probes p CROSS JOIN (SELECT now, interval_s FROM bounds) b
+            WHERE (:model='' OR p.model=:model) AND (:effort='' OR p.effort=:effort)
           )
           SELECT t.model,t.effort,b.bucket_start,
-                 CASE WHEN SUM(MAX(0, MIN(b.bucket_start+b.width, p.next_t) - MAX(b.bucket_start,p.t))) > 0
-                      THEN SUM(MAX(0, MIN(b.bucket_start+b.width, p.next_t) - MAX(b.bucket_start,p.t))*p.ok) /
-                           SUM(MAX(0, MIN(b.bucket_start+b.width, p.next_t) - MAX(b.bucket_start,p.t))) END AS availability,
+                 CASE WHEN SUM(MAX(0, MIN(b.bucket_start+b.width, p.next_t, p.t+2*p.interval_s, p.now) - MAX(b.bucket_start,p.t))) > 0
+                      THEN SUM(MAX(0, MIN(b.bucket_start+b.width, p.next_t, p.t+2*p.interval_s, p.now) - MAX(b.bucket_start,p.t))*p.ok) /
+                           SUM(MAX(0, MIN(b.bucket_start+b.width, p.next_t, p.t+2*p.interval_s, p.now) - MAX(b.bucket_start,p.t))) END AS availability,
                  SUM(CASE WHEN p.t >= b.bucket_start AND p.t < b.bucket_start+b.width THEN 1 ELSE 0 END) AS samples
           FROM targets t CROSS JOIN buckets b LEFT JOIN points p ON p.model=t.model AND p.effort=t.effort
              AND p.next_t > b.bucket_start AND p.t < b.bucket_start+b.width

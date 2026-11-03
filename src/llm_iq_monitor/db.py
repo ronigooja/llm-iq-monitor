@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 UI_HISTORY = 7
 
 
@@ -156,6 +156,14 @@ def migrate(conn: sqlite3.Connection):
         """)
         conn.execute("PRAGMA user_version=5")
         version = 5
+    if version < 6:
+        conn.execute("""
+          CREATE TABLE IF NOT EXISTS availability_runtime (
+            now REAL NOT NULL, interval_s REAL NOT NULL, updated_at REAL NOT NULL
+          )
+        """)
+        conn.execute("PRAGMA user_version=6")
+        version = 6
     return version
 
 

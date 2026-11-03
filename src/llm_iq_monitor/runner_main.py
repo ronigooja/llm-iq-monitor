@@ -76,6 +76,9 @@ async def _settings_main(settings=None, *, conn=None, gateway_client=None, stop_
     conn.execute("DELETE FROM availability_config")
     conn.execute("INSERT INTO availability_config(window_min,min_samples,updated_at) VALUES(?,?,?)",
                  (settings.availability.window_min, settings.availability.min_samples, time.time()))
+    conn.execute("DELETE FROM availability_runtime")
+    conn.execute("INSERT INTO availability_runtime(now,interval_s,updated_at) VALUES(?,?,?)",
+                 (time.time(), settings.availability.probe_idle_every_min * 60, time.time()))
     adapter = DBAdapter(conn)
     gateway = settings.gateway
 
@@ -127,6 +130,9 @@ async def _settings_main(settings=None, *, conn=None, gateway_client=None, stop_
         conn.execute("DELETE FROM availability_config")
         conn.execute("INSERT INTO availability_config(window_min,min_samples,updated_at) VALUES(?,?,?)",
                      (settings.availability.window_min, settings.availability.min_samples, time.time()))
+        conn.execute("DELETE FROM availability_runtime")
+        conn.execute("INSERT INTO availability_runtime(now,interval_s,updated_at) VALUES(?,?,?)",
+                     (time.time(), settings.availability.probe_idle_every_min * 60, time.time()))
         if old.schedule.heartbeat_cron != new_settings.schedule.heartbeat_cron:
             scheduler = rebuild_scheduler(scheduler, new_settings, heartbeat=dispatcher.tick,
                                           refresh_prices=refresh, maintenance=maintenance)
