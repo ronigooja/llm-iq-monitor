@@ -79,7 +79,7 @@ The pelican-on-a-bicycle test with a second fixed subject, rated by a person ins
 - The reply's SVG is stored as a sample ([data-model.md](data-model.md#tables)). Rules before storing: it parses as XML, the root is `svg`, it is at most 200 KB, and it contains no `script`, `foreignObject`, event-handler attributes, `href` to anything other than `#fragment`, or `style` that imports or loads URLs. A reply that fails these is stored as an invalid sample with 0 stars, not as an error.
 - Samples are shown on the UI page as images (`<img>` from a data URL, so nothing inside runs). A person rates each sample 1–10 stars after unlocking the page with the rating key ([web.md](web.md#page-ui-ui), [deployment.md](deployment.md#rating-key)).
 - `score` of `ui` = mean stars × 10 over the rated samples of the run's latest samples, null until at least one is rated.
-- To bound the rating work: a target gets a new sample for a prompt only if its previous sample of that prompt has been rated or is older than 7 days. Per target and prompt, the SVGs of the newest 7 samples are kept (history shown on the UI page); older SVGs are deleted and only their stars stay.
+- To bound the rating work: a target gets a new sample for a prompt only if its previous sample of that prompt has been rated or is older than 7 days. Per target and prompt, the SVGs of the newest 5 samples are kept (history shown on the UI page); older SVGs are deleted and only their stars stay.
 - `ui` has no judged quality. Human ratings are subjective; they are a reference for routing graphics tasks, not a machine-verified truth.
 
 ## Dataset versioning

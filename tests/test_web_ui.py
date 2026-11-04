@@ -25,12 +25,12 @@ const newest = sections[0].cards[0];
 const history = context.window.historySamples(rows, newest);
 if (sections.map(s => s.promptKey).join(',') !== 'classic,variant') throw Error('section order');
 if (sections[0].cards[0].model !== 'alpha' || sections[0].cards[0].effort !== 'low' || sections[0].cards[0].sample_id !== 3) throw Error('newest/card order');
-if (history.length !== 6 || history.some(row => !row.svg) || history.some(row => row.sample_id === 99)) throw Error('history filtering');
+    if (history.length !== 4 || history.some(row => !row.svg) || history.some(row => row.sample_id === 99)) throw Error('history filtering');
 console.log(JSON.stringify({{sections: sections.length, history: history.length}}));
 """
     result = subprocess.run(["node", "-e", harness], cwd=ROOT, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
-    assert json.loads(result.stdout) == {"sections": 2, "history": 6}
+    assert json.loads(result.stdout) == {"sections": 2, "history": 4}
 
 
 def test_ui_card_key_round_trips_through_html_attribute_and_sorts_by_stars():
@@ -63,6 +63,9 @@ def test_ui_design_has_untranslated_efforts_and_history_copy():
     assert "'ui.noHistory': 'No history yet'" in script and "'ui.noHistory': '暂无历史'" in script
     assert "<details" not in script
     assert "seed" not in script
+    assert 'class="history-toggle"' in script
+    assert 'aria-expanded="${shown}"' in script
+    assert 'title="${tr(\'ui.history\')}"' in script
 
 
 def test_ui_sections_use_separate_kind_and_subject_i18n_elements():

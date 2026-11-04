@@ -1,4 +1,20 @@
-(async () => {
+function chartOptions(rows, dim, width, marks) {
+  const ui = dim === 'ui', showQuality = !ui && ['write_zh','write_en'].includes(dim) && rows.some(r => r.quality != null);
+  const t0 = rows[0].t, t1 = rows.at(-1).t;
+  const pad = t1 === t0 ? 21600 : (t1 - t0) * .03;
+  const number = digits => (u, v) => v == null ? '' : Number(v).toFixed(digits);
+  const scoreValue = number(1), latencyValue = number(2);
+  return {
+    width, height:240,
+    scales:{x:{time:true,auto:false,min:t0-pad,max:t1+pad},score:{range:[0,100]},latency:{range:(u,min,max)=>[0,Math.max((max||0)*1.15,1)]}},
+    series:[{show:false}, {label:tr('chart.score'),scale:'score',value:scoreValue,stroke:css('--accent'),width:2,points:{show:rows.length<60,size:6}}, ...(ui?[]:[{label:tr('chart.time'),scale:'latency',value:latencyValue,stroke:css('--muted'),width:2,dash:[6,4]}]), ...(showQuality?[{label:tr('chart.quality'),scale:'score',value:scoreValue,stroke:css('--fg'),width:2,dash:[2,4]}]:[])],
+    axes:[{}, {scale:'score'}, ...(ui?[]:[{scale:'latency',side:1}])],
+    hooks:{draw:[u=>{const c=u.ctx;c.save();c.strokeStyle=css('--fg');c.setLineDash([4,4]);c.font='11px system-ui';for(const [t,v] of marks){const x=Math.round(u.valToPos(t,'x',true));c.beginPath();c.moveTo(x,u.bbox.top);c.lineTo(x,u.bbox.top+u.bbox.height);c.stroke();c.fillText(v,x+4,u.bbox.top+12);}c.restore();}]}
+  };
+}
+if (typeof window !== 'undefined') window.chartOptions = chartOptions;
+
+if (typeof document !== 'undefined') (async () => {
   const root = document.querySelector('#scores');
   function button(label, attrs = '') { return `<button ${attrs}>${esc(label)}</button>`; }
   async function renderChart(el) {
@@ -14,8 +30,8 @@
     if (!rows.length) { target.textContent = tr('status.noDataRange'); return; }
     const ui = dim === 'ui', showQuality = !ui && ['write_zh','write_en'].includes(dim) && rows.some(r => r.quality != null);
     const data = [rows.map(r => r.t), rows.map(r => r.score), ...(ui ? [] : [rows.map(r => r.latency_p50)]), ...(showQuality ? [rows.map(r => r.quality)] : [])];
-    const marks = versionMarks(rows), t0 = rows[0].t, t1 = rows.at(-1).t, pad = t1 === t0 ? 21600 : (t1-t0)*.03;
-    new uPlot({ width:Math.max(300,target.clientWidth), height:240, scales:{x:{time:true,auto:false,min:t0-pad,max:t1+pad},score:{range:[0,100]},latency:{range:(u,min,max)=>[0,Math.max((max||0)*1.15,1)]}}, legend:{values:(u,seriesIdx)=>u.cursor.idx==null?'':u.series[seriesIdx].value(u,u.cursor.idx,seriesIdx)}, series:[{show:false}, {label:tr('chart.score'),scale:'score',stroke:css('--accent'),width:2,points:{show:rows.length<60,size:6}}, ...(ui?[]:[{label:tr('chart.time'),scale:'latency',stroke:css('--muted'),width:2,dash:[6,4]}]), ...(showQuality?[{label:tr('chart.quality'),scale:'score',stroke:css('--fg'),width:2,dash:[2,4]}]:[])], axes:[{}, {scale:'score'}, ...(ui?[]:[{scale:'latency',side:1}])], hooks:{draw:[u=>{const c=u.ctx;c.save();c.strokeStyle=css('--fg');c.setLineDash([4,4]);c.font='11px system-ui';for(const [t,v] of marks){const x=Math.round(u.valToPos(t,'x',true));c.beginPath();c.moveTo(x,u.bbox.top);c.lineTo(x,u.bbox.top+u.bbox.height);c.stroke();c.fillText(v,x+4,u.bbox.top+12);}c.restore();}]}}, data, target);
+    const marks = versionMarks(rows);
+    new uPlot(chartOptions(rows, dim, Math.max(300,target.clientWidth), marks), data, target);
   }
   async function load() {
     const [dims, rows] = await Promise.all([loadDimensions(), api('models')]);

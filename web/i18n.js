@@ -5,7 +5,7 @@
     'status.loading':'Loading…','status.noData':'No data.','status.noDataRange':'No data in this range.','status.noFinishedRuns':'No finished runs yet.',
     'status.loadData':'Unable to load monitor data.','status.loadSeries':'Unable to load data.','status.noDataRangeShort':'no data in range',
     'compare.legend':'Bar = score (0–100). Dot = time to solve; text shows score, judged quality, time and cost.','compare.judged':'judged',
-    'ui.ratingKey':'Rating key','ui.unlock':'Unlock','ui.accepted':'key accepted','ui.notAccepted':'key not accepted','ui.notRated':'Not rated','ui.invalid':'No valid sample',
+     'ui.ratingKey':'Rating key','ui.unlock':'Unlock','ui.accepted':'key accepted','ui.notAccepted':'key not accepted','ui.notRated':'Not rated','ui.invalid':'No valid sample',
      'ui.svgSample':'SVG sample','ui.stars':'{n} of 10 stars','ui.starCount':'{n} stars','ui.subject.classic':'A pelican riding a bicycle','ui.subject.variant':'A penguin driving a tractor','chart.score':'Score','chart.time':'Time to solve (s)','chart.quality':'Quality (judged)',
     'card.lastRun':'last run {date}','effort.low':'low','effort.medium':'medium','effort.high':'high',
     'av.intro':'Availability is the share of probe requests that succeeded, weighted by time. Busy means recent probes are failing or slow. Idle means probes succeed at normal speed. Unknown means there are too few probes to tell.','av.legend':'Each cell is one time bucket. Green 99% or more, light green 95–99%, amber 90–95%, orange 75–90%, red below 75%, grey no probes.','av.range':'Time range','av.range1d':'1 d','av.range7d':'7 d','av.range30d':'30 d',

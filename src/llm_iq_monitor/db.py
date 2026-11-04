@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 SCHEMA_VERSION = 6
-UI_HISTORY = 7
+UI_HISTORY = 5
 
 
 def migrate_path() -> Path:

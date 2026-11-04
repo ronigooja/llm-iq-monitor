@@ -100,9 +100,9 @@ def test_meta_keys_are_registered_for_both_languages_and_each_page():
 
 
 @pytest.mark.asyncio
-async def test_all_page_assets_use_version_21(client):
+async def test_all_page_assets_use_version_23(client):
     for path in PAGES:
         body = (await client.get(path)).text
         versions = set(re.findall(r"/static/[\w./-]+\?v=(\d+)", body))
-        assert versions == {"22"}, (path, versions)
+        assert versions == {"23"}, (path, versions)
         assert "?v=17" not in body

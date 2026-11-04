@@ -32,7 +32,7 @@ def test_ui_samples_and_due_matrix():
     assert conn.execute("SELECT svg FROM ui_samples WHERE id=?", (second,)).fetchone()[0] == "<svg/>"
 
 
-def test_ui_sample_history_keeps_newest_seven_per_target():
+def test_ui_sample_history_keeps_newest_five_per_target():
     conn = connect(":memory:")
     conn.execute("INSERT INTO models(id, active) VALUES ('m', 1), ('other', 1)")
     run = create_run(conn, model="m", effort="medium", seed="s", dataset_version="v2", trigger="manual", dims="[\"ui\"]", params="{}", status="running")
@@ -42,6 +42,6 @@ def test_ui_sample_history_keeps_newest_seven_per_target():
     insert_ui_sample(conn, other_run, "variant", "other", "<svg>other</svg>", True, created_at=8)
 
     rows = conn.execute("SELECT id, svg, stars FROM ui_samples WHERE id IN ({}) ORDER BY id".format(",".join("?" * len(ids))), ids).fetchall()
-    assert [row[1] is not None for row in rows] == [False, True, True, True, True, True, True, True]
+    assert [row[1] is not None for row in rows] == [False, False, False, True, True, True, True, True]
     assert rows[0][2] == 4
     assert conn.execute("SELECT svg FROM ui_samples WHERE run_id=?", (other_run,)).fetchone()[0] == "<svg>other</svg>"

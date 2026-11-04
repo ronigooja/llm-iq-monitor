@@ -15,7 +15,7 @@
 | Question seed | The UTC date |
 | Max output tokens | Default 16384, adjustable |
 | Dimensions for routing | Six: `reasoning`, `code`, `instruction`, `write_zh`, `write_en`, `ui`, each with a "use it when" description so a router can map a task to a dimension. `math` and `science` are legacy and off by default ([benchmark.md](benchmark.md#dimensions)) |
-| UI dimension | Pelican-style SVG with a second fixed subject (penguin driving a tractor), the newest 7 samples per target kept, shown on the site, rated 1–10 stars by a person with a rating key; the key is generated on the host ([benchmark.md](benchmark.md#ui-samples), [deployment.md](deployment.md#rating-key)) |
+| UI dimension | Pelican-style SVG with a second fixed subject (penguin driving a tractor), the newest 5 samples per target kept, shown on the site, rated 1–10 stars by a person with a rating key; the key is generated on the host ([benchmark.md](benchmark.md#ui-samples), [deployment.md](deployment.md#rating-key)) |
 | Pages | Real paths `/`, `/compare`, `/ui`, not `#` routing ([web.md](web.md)) |
 | Concurrency | `run.parallel_models` is 1 because the gateway limits capacity |
 | Errors | Each model-side or gateway-side question error is retried up to the configured total; an exhausted question aborts its model × effort run and leaves it for the next heartbeat ([metrics.md](metrics.md#errors)) |
@@ -70,6 +70,8 @@
 ## Open
 
 None.
+
+The UI sample retention reduction from seven to five requires no migration; the next insert naturally removes SVG content beyond the newest five while preserving stars.
 
 ## Dataset history
 
