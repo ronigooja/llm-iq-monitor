@@ -163,12 +163,12 @@ databases:
             WHERE rest <> ''
            ),
            dimensions AS (
-            SELECT 'reasoning' AS dim, 'Reasoning' AS name, 'Multi-step logic and calculation (ordering, probability, calendar), reading tables, avoiding traps, admitting when the answer is unknown' AS use_when
-            UNION ALL SELECT 'code', 'Code', 'Writing algorithmic functions and fixing bugs'
-            UNION ALL SELECT 'instruction', 'Instruction following', 'Following a strict output format under several rules at once, extracting fields into JSON'
-            UNION ALL SELECT 'write_zh', 'Writing · 中文', 'Chinese writing under explicit constraints: replies, notices, summaries, guides, stories, essays, promotional copy'
-            UNION ALL SELECT 'write_en', 'Writing · English', 'English writing under explicit constraints: replies, notices, summaries, guides, stories, essays, promotional copy'
-            UNION ALL SELECT 'ui', 'Drawing (SVG)', 'Drawing an illustration as SVG'
+            SELECT 'reasoning' AS dim, 'Reasoning' AS name, 'Multi-step logic and calculation (ordering, probability, calendar, tables), and admitting when the answer cannot be determined' AS use_when
+            UNION ALL SELECT 'code', 'Code', 'Writing correct algorithmic functions and fixing defects'
+            UNION ALL SELECT 'instruction', 'Instruction following', 'Obeying a required output format and several rules at once, including extracting fields into JSON'
+            UNION ALL SELECT 'write_zh', 'Writing · 中文', 'Chinese writing that meets explicit requirements on tone, length, structure and wording'
+            UNION ALL SELECT 'write_en', 'Writing · English', 'English writing that meets explicit requirements on tone, length, structure and wording'
+            UNION ALL SELECT 'ui', 'Drawing (SVG)', 'Visual design: composing shapes, layout, proportion and color into a coherent image (tested by drawing SVG)'
           ), latest AS (
             SELECT r.id AS run_id, r.model, r.effort, r.finished_at,
                    r.dataset_version, r.status,
@@ -408,12 +408,12 @@ databases:
       dimensions:
         allow: true
         sql: |
-          SELECT 'reasoning' AS dim, 'Reasoning' AS name, 'Multi-step logic and calculation (ordering, probability, calendar), reading tables, avoiding traps, admitting when the answer is unknown' AS use_when, 'answer' AS kind
-          UNION ALL SELECT 'code', 'Code', 'Writing algorithmic functions and fixing bugs', 'code'
-          UNION ALL SELECT 'instruction', 'Instruction following', 'Following a strict output format under several rules at once, extracting fields into JSON', 'text'
-           UNION ALL SELECT 'write_zh', 'Writing · 中文', 'Chinese writing under explicit constraints: replies, notices, summaries, guides, stories, essays, promotional copy', 'text'
-           UNION ALL SELECT 'write_en', 'Writing · English', 'English writing under explicit constraints: replies, notices, summaries, guides, stories, essays, promotional copy', 'text'
-          UNION ALL SELECT 'ui', 'Drawing (SVG)', 'Drawing an illustration as SVG', 'svg'
+          SELECT 'reasoning' AS dim, 'Reasoning' AS name, 'Multi-step logic and calculation (ordering, probability, calendar, tables), and admitting when the answer cannot be determined' AS use_when, 'answer' AS kind
+          UNION ALL SELECT 'code', 'Code', 'Writing correct algorithmic functions and fixing defects', 'code'
+          UNION ALL SELECT 'instruction', 'Instruction following', 'Obeying a required output format and several rules at once, including extracting fields into JSON', 'text'
+           UNION ALL SELECT 'write_zh', 'Writing · 中文', 'Chinese writing that meets explicit requirements on tone, length, structure and wording', 'text'
+           UNION ALL SELECT 'write_en', 'Writing · English', 'English writing that meets explicit requirements on tone, length, structure and wording', 'text'
+          UNION ALL SELECT 'ui', 'Drawing (SVG)', 'Visual design: composing shapes, layout, proportion and color into a coherent image (tested by drawing SVG)', 'svg'
       ui_samples:
         allow: true
         sql: |

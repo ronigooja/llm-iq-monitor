@@ -104,5 +104,5 @@ async def test_all_page_assets_use_version_24(client):
     for path in PAGES:
         body = (await client.get(path)).text
         versions = set(re.findall(r"/static/[\w./-]+\?v=(\d+)", body))
-        assert versions == {"24"}, (path, versions)
+        assert versions == {"25"}, (path, versions)
         assert "?v=17" not in body
