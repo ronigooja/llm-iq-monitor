@@ -67,7 +67,8 @@ def test_ui_design_has_untranslated_efforts_and_history_copy():
     assert 'aria-expanded="${shown}"' in script
     assert 'title="${tr(\'ui.history\')}"' in script
     assert '>◷</button>' in script
-    assert '<div class="history-panel"><p class="muted">${tr(\'ui.noHistory\')}</p></div>' in script
+    assert '<div class="history-panel" data-for="${id}"><p class="muted">${tr(\'ui.noHistory\')}</p></div>' in script
+    assert "placeHistory()" in script and "event.key === 'Escape'" in script
 
 
 def test_ui_sections_use_separate_kind_and_subject_i18n_elements():
@@ -98,3 +99,10 @@ console.log(JSON.stringify(byModel));
     result = subprocess.run(["node", "-e", harness], cwd=ROOT, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout) == {"m": 1, "n": 4}
+
+
+def test_history_overlay_is_out_of_grid_flow_and_symbol_is_not_framed():
+    css = (ROOT / "web/style.css").read_text()
+    assert ".history-panel { position:absolute;" in css
+    assert ".sample-grid { position:relative; }" in css
+    assert ".history-toggle { display:block; margin:.6rem auto 0; padding:0; border:0; background:none;" in css
