@@ -16,7 +16,7 @@ Public, read-only, JSON, no authentication. Provided by [Datasette](https://data
 
 | Name | Parameters | Returns |
 |---|---|---|
-| `best` | `score_tolerance`, `price_tolerance`, `min_availability`, `exclude`, `exclude_reasoning`, `exclude_code`, `exclude_instruction`, `exclude_write_zh`, `exclude_write_en`, `exclude_ui` (all optional) | Six routing rows. `min_availability` defaults to 0.9; 0 disables filtering. Null availability does not filter a candidate. |
+| `best` | `score_tolerance`, `price_tolerance`, `min_availability`, `exclude`, `exclude_reasoning`, `exclude_code`, `exclude_instruction`, `exclude_write_zh`, `exclude_write_en`, `exclude_ui` (all optional) | Six routing rows. `min_availability` defaults to 0.9; 0 disables filtering ([Router usage](#router-usage)). |
 | `ranking` | `dim` (required), `effort` (optional) | Ranking for one capability |
 | `availability_now` | none | Current weighted probe availability per model × effort |
 | `series` | `model`, `effort`, `dim` (all required), `from`, `to`, `dataset_version` (optional) | History points, time ascending, at most 2000 rows |
@@ -30,7 +30,7 @@ Columns:
 - `ranking`: `rank`, `model`, `effort`, `run_id`, `finished_at`, `dataset_version`, `status`, `score`, `quality`, `latency_p50`, `latency_p95`, `ttft_p50`, `time_total`, `n`, `n_err`, `cost_usd`, `cost_per_correct`.
 - `availability_now`: `model`, `effort`, `availability`, `samples`, `state`, `latency_p50`, `last_probe_at`.
 - `best`: `dim`, `use_when`, `model`, `effort`. Selection uses score, derived `cost_per_correct` and `latency_p50`, but only these four routing fields are exposed.
-- `series`: `t`, `run_id`, `dataset_version`, `score`, `quality`, `latency_p50`, `latency_p95`, `ttft_p50`, `time_total`, `availability`, `cost_per_correct`.
+- `series`: `t`, `run_id`, `dataset_version`, `score`, `quality`, `latency_p50`, `latency_p95`, `ttft_p50`, `time_total`, `cost_per_correct`.
 - `models`: `model`, `effort`, `active`, `dims`, `last_finished_at`, `last_status`.
 - `health`: `last_finished_at`, `running_runs`, `prices_fetched_at`, `dataset_version` (the current version: that of the most recently started run).
 - `dimensions`: `dim`, `name`, `use_when`, `kind`; the writing descriptions are “Chinese writing under explicit constraints: replies, notices, summaries, guides, stories, essays, promotional copy” and “English writing under explicit constraints: replies, notices, summaries, guides, stories, essays, promotional copy”.
@@ -41,7 +41,7 @@ Runs with status `unsupported`, `aborted` or `running` are excluded from `rankin
 
 ### Router usage
 
-Call `best` to get exactly six rows in display order. Check `model` for null before routing. It considers every model × effort in the current dataset version, removes excluded model ids and null scores, keeps scores within `score_tolerance` points of the dimension maximum, then applies `price_tolerance` percent to the cheapest comparable `cost_per_correct` candidate (or keeps all when none has a price). The final tie-break is lowest non-null `latency_p50`, then model and effort ascending. Invalid numeric parameters use their defaults: 0 score points and 30 percent.
+Call `best` to get exactly six rows in display order. Check `model` for null before routing. It considers every model × effort in the current dataset version, removes excluded model ids, null scores and candidates whose probe availability is below `min_availability` (candidates without enough probes are kept), keeps scores within `score_tolerance` points of the dimension maximum, then applies `price_tolerance` percent to the cheapest comparable `cost_per_correct` candidate (or keeps all when none has a price). The final tie-break is lowest non-null `latency_p50`, then model and effort ascending. Invalid numeric parameters use their defaults: 0 score points and 30 percent.
 
 Example: `/monitor/best.json?exclude_ui=gpt&_shape=array` excludes model IDs containing `gpt` only from the `ui` recommendation.
 
