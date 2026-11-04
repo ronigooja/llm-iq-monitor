@@ -1,4 +1,5 @@
 const UI_EFFORT_ORDER = { low: 0, medium: 1, high: 2 };
+function cardKey(sample) { return `${sample.model}|${sample.effort}|${sample.prompt_key}`; }
 
 function newestSample(rows) {
   return [...rows].sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0) || Number(b.sample_id || 0) - Number(a.sample_id || 0))[0];
@@ -7,7 +8,7 @@ function newestSample(rows) {
 function reduceSamples(rows) {
   const targets = new Map();
   rows.forEach(row => {
-    const key = `${row.model}\0${row.effort}\0${row.prompt_key}`;
+    const key = cardKey(row);
     const current = targets.get(key);
     const usable = sample => Boolean(sample.svg && sample.valid);
     if (!current || (usable(row) && !usable(current)) || (usable(row) === usable(current) && newestSample([current, row]) === row)) targets.set(key, row);
@@ -23,6 +24,9 @@ function groupSamples(rows) {
     if (!sections.has(sample.prompt_key)) sections.set(sample.prompt_key, { promptKey: sample.prompt_key, prompt: sample.prompt, cards: [] });
     sections.get(sample.prompt_key).cards.push(sample);
   });
+  sections.forEach(section => section.cards.sort((a, b) =>
+    (b.stars == null ? -1 : a.stars == null ? 1 : Number(b.stars) - Number(a.stars)) ||
+    a.model.localeCompare(b.model) || (UI_EFFORT_ORDER[a.effort] ?? 99) - (UI_EFFORT_ORDER[b.effort] ?? 99)));
   return [...sections.values()].sort((a, b) => a.promptKey === 'classic' ? -1 : b.promptKey === 'classic' ? 1 : a.promptKey.localeCompare(b.promptKey));
 }
 
@@ -31,7 +35,7 @@ function historySamples(rows, newest) {
     .sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0) || Number(b.sample_id || 0) - Number(a.sample_id || 0)).slice(0, 6);
 }
 
-if (typeof window !== 'undefined') Object.assign(window, { reduceSamples, groupSamples, historySamples });
+if (typeof window !== 'undefined') Object.assign(window, { reduceSamples, groupSamples, historySamples, cardKey });
 
 if (typeof document !== 'undefined') (async () => {
   const root = document.querySelector('#ui'), form = document.querySelector('#key-form'), msg = document.querySelector('#key-message');
@@ -42,7 +46,6 @@ if (typeof document !== 'undefined') (async () => {
     'ui.classic': '经典', 'ui.variant': '变体', 'ui.history': '历史', 'ui.noHistory': '暂无历史'
   }});
   const image = svg => svg ? `<img alt="${tr('ui.svgSample')}" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}">` : `<div class="placeholder">${tr('ui.invalid')}</div>`;
-  const cardKey = sample => `${sample.model}\0${sample.effort}\0${sample.prompt_key}`;
   const date = value => value ? new Date(Number(value) * 1000).toLocaleDateString(i18n.lang() === 'zh' ? 'zh-CN' : 'en') : '—';
   function stars(sample, historyKey = '') {
     const controls = key && sample.valid && sample.svg ? Array.from({ length: 10 }, (_, i) => `<button type="button" data-star="${i + 1}" aria-label="${tr('ui.starCount', { n: i + 1 })}">${i + 1 <= sample.stars ? '★' : '☆'}</button>`).join('') : sample.stars ? `${'★'.repeat(sample.stars)}${'☆'.repeat(10 - sample.stars)}` : tr('ui.notRated');
@@ -66,7 +69,7 @@ if (typeof document !== 'undefined') (async () => {
       try {
         await api('rate', {}, { method: 'POST', headers: { Authorization: `Bearer ${key}`, Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' }, body });
         samples = samples.map(row => row.sample_id === Number(sample.dataset.id) ? { ...row, stars: Number(button.dataset.star) } : row);
-        if (historyKey) cache.set(historyKey, await api('ui_samples', { model: historyKey.split('\0')[0], effort: historyKey.split('\0')[1] }));
+        if (historyKey) cache.set(historyKey, await api('ui_samples', { model: historyKey.split('|')[0], effort: historyKey.split('|')[1] }));
         else samples = await api('ui_samples');
         render();
       } catch (_) { msg.textContent = tr('ui.notAccepted'); }

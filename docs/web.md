@@ -43,14 +43,14 @@ Buttons and cards use the names from the `dimensions` query: the dimension key p
 
 ## Page: Compare (`/compare`)
 
-- Capability cards stacked vertically, one per dimension with data, in dimension order. `ui` rows show stars × 10 and the number of rated samples instead of latency.
+- Capability cards stacked vertically, one per dimension with data, in dimension order. `ui` rows show stars × 10 instead of latency.
 - Each card is a horizontal ranking from the `ranking` query for that capability: one row per model × effort, ordered by rank, latest run of each. Rows without a score show no bar and are listed last.
 - A row shows: rank, `model@effort`, a bar whose length is the score (scale 0–100), a dot on the same track positioned by latency p50 on the card's own latency axis (0 to the card's maximum), and text at the end of the row: `score · latency · $cost per correct`, for example `91.7 · 14s · $0.012`. Writing rows add the judged value as `score · quality (judged) · latency · $cost`, for example `83.3 · 78 judged · 14s · $0.012`; `quality` never changes row order. A null cost shows `—`.
 - Cost is text only. It is not a sort key or a chart ([overview.md](overview.md#scope)).
 
 ## Page: UI (`/ui`)
 
-- Two sections by question, classic then variant, each headed by its subject (the full prompt is a tooltip). One card per model and effort (model id ascending, then low, medium, high; effort labels are not translated): the newest valid SVG as an image, model and effort, and the stars (read-only by default). A card shows a placeholder only when the model has no valid sample for that question.
+- Two sections by question, classic then variant, each headed by its subject (the full prompt is a tooltip). Within each section, cards are ordered by the stars on the displayed newest sample, highest first, with unrated cards last; ties retain model id ascending, then low, medium, high. One card per model and effort (effort labels are not translated): the newest valid SVG as an image, model and effort, and the stars (read-only by default). A card shows a placeholder only when the model has no valid sample for that question. The order is recalculated after each render, including after rating.
 - History: a card's History button loads that card's older samples on demand (`ui_samples` with `model` and `effort`) and shows up to 6 older thumbnails with date and stars, 7 samples in total with the newest; the same retention as [benchmark.md](benchmark.md#ui-samples).
 - Rating key: a field at the bottom of the page. The key is checked with the `rate` query's authentication ([api.md](api.md#exposure-rules)); if accepted, the page keeps the key in `sessionStorage` (not a cookie, not in the URL) and every sample gets 10 clickable stars. A wrong key shows "key not accepted" and nothing changes.
 - After a click the page sends `rate`, then reads the sample back and shows the stored stars, because an out-of-range value changes nothing.

@@ -33,6 +33,29 @@ console.log(JSON.stringify({{sections: sections.length, history: history.length}
     assert json.loads(result.stdout) == {"sections": 2, "history": 6}
 
 
+def test_ui_card_key_round_trips_through_html_attribute_and_sorts_by_stars():
+    rows = [
+        {"sample_id": 1, "model": "zeta", "effort": "low", "prompt_key": "classic", "stars": None, "svg": "<svg/>", "valid": 1},
+        {"sample_id": 2, "model": "alpha", "effort": "high", "prompt_key": "classic", "stars": 7, "svg": "<svg/>", "valid": 1},
+        {"sample_id": 3, "model": "alpha", "effort": "low", "prompt_key": "classic", "stars": 7, "svg": "<svg/>", "valid": 1},
+    ]
+    harness = f"""
+const fs = require('fs'), vm = require('vm');
+const context = {{ window: {{}}, document: undefined }};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(ROOT / 'web/ui.js'))}, 'utf8'), context);
+const key = context.window.cardKey({json.dumps(rows[2])});
+if (/\\0|[\\x00-\\x1f\\x7f]/.test(key) || key !== 'alpha|low|classic') throw Error('unsafe card key');
+const cards = context.window.groupSamples({json.dumps(rows)});
+if (cards[0].cards.map(c => c.sample_id).join(',') !== '3,2,1') throw Error('star sort');
+const html = `<button data-history="${{key}}"></button>`;
+if (!html.includes('data-history="alpha|low|classic"')) throw Error('attribute round trip');
+console.log(key);
+"""
+    result = subprocess.run(["node", "-e", harness], cwd=ROOT, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "alpha|low|classic"
+
+
 def test_ui_design_has_untranslated_efforts_and_history_copy():
     script = (ROOT / "web/ui.js").read_text()
     assert "esc(sample.effort)" in script
