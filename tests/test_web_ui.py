@@ -115,3 +115,29 @@ def test_history_samples_reuse_main_card_markup():
     assert "esc(when(row.created_at))" in script
     css = (ROOT / "web/style.css").read_text()
     assert ".history-sample img" not in css and ".history-sample .stars" not in css
+
+
+def test_saved_order_keeps_cards_in_place_after_rating():
+    rows = [
+        {"sample_id": 1, "model": "zeta", "effort": "low", "prompt_key": "classic", "stars": None, "svg": "<svg/>", "valid": 1},
+        {"sample_id": 2, "model": "alpha", "effort": "high", "prompt_key": "classic", "stars": 7, "svg": "<svg/>", "valid": 1},
+        {"sample_id": 3, "model": "alpha", "effort": "low", "prompt_key": "classic", "stars": 9, "svg": "<svg/>", "valid": 1},
+    ]
+    harness = f"""
+const fs = require('fs'), vm = require('vm');
+const context = {{ window: {{}}, document: undefined }};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(ROOT / 'web/ui.js'))}, 'utf8'), context);
+const g = context.window.groupSamples, key = context.window.cardKey;
+const rows = {json.dumps(rows)};
+const order = g(rows).flatMap(s => s.cards.map(key));
+if (order.join(',') !== 'alpha|low|classic,alpha|high|classic,zeta|low|classic') throw Error('initial order ' + order);
+const rated = rows.map(r => r.sample_id === 1 ? {{ ...r, stars: 10 }} : r);
+const kept = g(rated, order)[0].cards.map(c => c.sample_id).join(',');
+if (kept !== '3,2,1') throw Error('order must not change after rating: ' + kept);
+const fresh = g(rated)[0].cards.map(c => c.sample_id).join(',');
+if (fresh !== '1,3,2') throw Error('a reload sorts again: ' + fresh);
+console.log('ok');
+"""
+    result = subprocess.run(["node", "-e", harness], cwd=ROOT, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "ok"

@@ -18,13 +18,16 @@ function reduceSamples(rows) {
     : a.prompt_key === 'classic' ? -1 : b.prompt_key === 'classic' ? 1 : a.prompt_key.localeCompare(b.prompt_key));
 }
 
-function groupSamples(rows) {
+function groupSamples(rows, order) {
   const sections = new Map();
   reduceSamples(rows).forEach(sample => {
     if (!sections.has(sample.prompt_key)) sections.set(sample.prompt_key, { promptKey: sample.prompt_key, prompt: sample.prompt, cards: [] });
     sections.get(sample.prompt_key).cards.push(sample);
   });
-  sections.forEach(section => section.cards.sort((a, b) =>
+  const rank = order ? new Map(order.map((id, i) => [id, i])) : null;
+  sections.forEach(section => section.cards.sort(rank
+    ? (a, b) => (rank.get(cardKey(a)) ?? 1e9) - (rank.get(cardKey(b)) ?? 1e9)
+    : (a, b) =>
     (b.stars == null ? -1 : a.stars == null ? 1 : Number(b.stars) - Number(a.stars)) ||
     a.model.localeCompare(b.model) || (UI_EFFORT_ORDER[a.effort] ?? 99) - (UI_EFFORT_ORDER[b.effort] ?? 99)));
   return [...sections.values()].sort((a, b) => a.promptKey === 'classic' ? -1 : b.promptKey === 'classic' ? 1 : a.promptKey.localeCompare(b.promptKey));
@@ -39,7 +42,7 @@ if (typeof window !== 'undefined') Object.assign(window, { reduceSamples, groupS
 
 if (typeof document !== 'undefined') (async () => {
   const root = document.querySelector('#ui'), form = document.querySelector('#key-form'), msg = document.querySelector('#key-message');
-  let key = sessionStorage.getItem('rating-key') || '', samples = [], cache = new Map(), open = new Set();
+  let key = sessionStorage.getItem('rating-key') || '', samples = [], cache = new Map(), open = new Set(), order = null;
   i18n.add({ en: {
     'ui.classic': 'Classic', 'ui.variant': 'Variant', 'ui.history': 'History', 'ui.noHistory': 'No history yet'
   }, zh: {
@@ -62,7 +65,7 @@ if (typeof document !== 'undefined') (async () => {
     });
   }
   function render() {
-     root.innerHTML = groupSamples(samples).map(section => `<section class="ui-section"><h2 class="ui-section-heading" title="${esc(section.prompt)}"><span class="ui-kind">${esc(tr(`ui.${section.promptKey}`))}</span><span class="ui-subject">${esc(tr(`ui.subject.${section.promptKey}`))}</span></h2><div class="sample-grid">${section.cards.map(sample => { const id = cardKey(sample), shown = open.has(id); return `<article class="sample" data-id="${sample.sample_id}" data-card-key="${esc(id)}">${image(sample.svg && sample.valid ? sample.svg : null)}<p>${esc(sample.model)} · ${esc(sample.effort)}</p>${stars(sample, id)}<button type="button" class="history-toggle" data-history="${esc(id)}" title="${tr('ui.history')}" aria-label="${tr('ui.history')}" aria-expanded="${shown}">◷</button></article>`; }).join('')}${section.cards.filter(sample => open.has(cardKey(sample))).map(sample => renderHistory(sample)).join('')}</div></section>`).join('');
+     root.innerHTML = groupSamples(samples, order).map(section => `<section class="ui-section"><h2 class="ui-section-heading" title="${esc(section.prompt)}"><span class="ui-kind">${esc(tr(`ui.${section.promptKey}`))}</span><span class="ui-subject">${esc(tr(`ui.subject.${section.promptKey}`))}</span></h2><div class="sample-grid">${section.cards.map(sample => { const id = cardKey(sample), shown = open.has(id); return `<article class="sample" data-id="${sample.sample_id}" data-card-key="${esc(id)}">${image(sample.svg && sample.valid ? sample.svg : null)}<p>${esc(sample.model)} · ${esc(sample.effort)}</p>${stars(sample, id)}<button type="button" class="history-toggle" data-history="${esc(id)}" title="${tr('ui.history')}" aria-label="${tr('ui.history')}" aria-expanded="${shown}">◷</button></article>`; }).join('')}${section.cards.filter(sample => open.has(cardKey(sample))).map(sample => renderHistory(sample)).join('')}</div></section>`).join('');
     placeHistory();
     root.querySelectorAll('[data-history]').forEach(button => button.onclick = async () => {
       const id = button.dataset.history, sample = samples.find(row => cardKey(row) === id);
@@ -83,7 +86,7 @@ if (typeof document !== 'undefined') (async () => {
       } catch (_) { msg.textContent = tr('ui.notAccepted'); }
     });
   }
-  async function load() { samples = await api('ui_samples'); render(); await loadFooter(); }
+  async function load() { samples = await api('ui_samples'); order = groupSamples(samples).flatMap(section => section.cards.map(cardKey)); render(); await loadFooter(); }
   form.onsubmit = async event => { event.preventDefault(); const candidate = document.querySelector('#rating-key').value; try { await api('whoami', {}, { headers: { Authorization: `Bearer ${candidate}` } }); sessionStorage.setItem('rating-key', candidate); key = candidate; msg.textContent = tr('ui.accepted'); render(); } catch (_) { msg.textContent = tr('ui.notAccepted'); } };
   try { await load(); } catch (_) { root.textContent = tr('status.loadData'); }
   document.addEventListener('langchange', () => { msg.textContent = ''; render(); });
