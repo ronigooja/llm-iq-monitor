@@ -142,3 +142,19 @@ async def test_best_candidates_match_ranking_for_each_dimension(client, monitor_
         assert ranking.status_code == 200, ranking.text
         models = {(row["model"], row["effort"]) for row in ranking.json() if row["score"] is not None}
         assert (best_rows[dim]["model"], best_rows[dim]["effort"]) in models
+
+
+@pytest.mark.asyncio
+async def test_best_ui_price_step_uses_total_cost(client, monitor_db):
+    add_candidate_db(monitor_db)
+    db = sqlite3.connect(monitor_db)
+    db.execute("UPDATE ui_samples SET stars=10")
+    # gamma-fast is faster (latency 1) but expensive; DELTA-cheap is slower (latency 5) but cheap.
+    db.execute("UPDATE run_dims SET latency_p50=1, cost_usd=0.30 WHERE run_id=10 AND dim='ui'")
+    db.execute("UPDATE run_dims SET latency_p50=5, cost_usd=0.10 WHERE run_id=11 AND dim='ui'")
+    db.commit()
+    db.close()
+    by_dim = {row["dim"]: row for row in await best(client, price_tolerance="0")}
+    assert by_dim["ui"]["model"] == "DELTA-cheap"
+    by_dim = {row["dim"]: row for row in await best(client, price_tolerance="500")}
+    assert by_dim["ui"]["model"] == "gamma-fast"

@@ -29,3 +29,8 @@ def test_chart_legend_hides_time_entry_and_uses_round_markers():
     css = (ROOT / "web/style.css").read_text()
     assert ".u-legend .u-series:first-child { display:none; }" in css
     assert ".u-legend .u-marker { border-radius:50%; }" in css
+
+
+def test_chart_legend_has_no_trailing_colon():
+    css = (ROOT / "web/style.css").read_text()
+    assert ".u-inline.u-live th::after { content:\"\"; }" in css

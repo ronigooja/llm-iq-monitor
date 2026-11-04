@@ -172,7 +172,7 @@ databases:
           ), latest AS (
             SELECT r.id AS run_id, r.model, r.effort, r.finished_at,
                    r.dataset_version, r.status,
-                   d.dim, d.score, d.quality, d.latency_p50, d.cost_per_correct,
+                   d.dim, d.score, d.quality, d.latency_p50, d.cost_per_correct, d.cost_usd,
                     
                    ROW_NUMBER() OVER (
                      PARTITION BY r.model, r.effort, d.dim
@@ -199,7 +199,8 @@ databases:
             GROUP BY model, effort
           ), candidates AS (
             SELECT l.run_id, l.model, l.effort, l.finished_at, l.dataset_version,
-                    l.dim, l.quality, l.latency_p50, l.cost_per_correct,
+                    l.dim, l.quality, l.latency_p50,
+                    CASE WHEN l.dim = 'ui' THEN l.cost_usd ELSE l.cost_per_correct END AS cost_per_correct,
                    CASE WHEN l.dim = 'ui' THEN us.score ELSE l.score END AS score
             FROM latest l LEFT JOIN ui_scores us ON us.model = l.model AND us.effort = l.effort
             WHERE l.rn = 1

@@ -112,3 +112,5 @@ main > header + section, main > header + #ranges { margin-top:1rem; }
 
 .u-legend .u-series:first-child { display:none; }
 .u-legend .u-marker { border-radius:50%; }
+.u-legend.u-live th::after { content:""; }
+.u-inline.u-live th::after { content:""; }
