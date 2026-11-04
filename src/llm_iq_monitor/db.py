@@ -280,8 +280,8 @@ def repair_last_triggers(conn, tolerance_s=60):
     ``last_trigger_at`` used to be written when work was enqueued, while the
     queue itself is process-local.  Keep a timestamp only when a completed
     run started at approximately that trigger; otherwise restore the most
-    recent completed run or clear it.  Aborted runs deliberately do not
-    count, so they remain eligible on the next heartbeat.
+    recent earlier completed run or clear it.  A cycle with an aborted run is
+    incomplete, so the model stays eligible on the next heartbeat.
     """
     rows = conn.execute(
         "SELECT id, last_trigger_at FROM models WHERE last_trigger_at IS NOT NULL"
@@ -289,23 +289,27 @@ def repair_last_triggers(conn, tolerance_s=60):
     repaired = 0
     for row in rows:
         trigger = row["last_trigger_at"]
-        matched = conn.execute(
+        interrupted = conn.execute(
+            "SELECT 1 FROM runs WHERE model=? AND status='aborted' AND started_at >= ? - ? LIMIT 1",
+            (row["id"], trigger, tolerance_s),
+        ).fetchone()
+        if not interrupted and conn.execute(
             """
             SELECT 1 FROM runs
             WHERE model=? AND status IN ('ok', 'partial', 'unsupported')
               AND started_at >= ? - ?
-            ORDER BY started_at DESC LIMIT 1
+            LIMIT 1
             """,
             (row["id"], trigger, tolerance_s),
-        ).fetchone()
-        if matched:
+        ).fetchone():
             continue
         previous = conn.execute(
             """
             SELECT MAX(started_at) FROM runs
             WHERE model=? AND status IN ('ok', 'partial', 'unsupported')
+              AND started_at < ? - ?
             """,
-            (row["id"],),
+            (row["id"], trigger, tolerance_s),
         ).fetchone()[0]
         conn.execute("UPDATE models SET last_trigger_at=? WHERE id=?", (previous, row["id"]))
         repaired += 1

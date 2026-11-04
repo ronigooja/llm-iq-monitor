@@ -219,3 +219,16 @@ def test_startup_repair_does_not_count_aborted_run(tmp_path):
     )
     assert db.repair_last_triggers(conn) == 1
     assert conn.execute("SELECT last_trigger_at FROM models WHERE id='demo'").fetchone()[0] is None
+
+
+def test_startup_repair_reopens_cycle_with_aborted_effort(tmp_path):
+    conn = db.connect(tmp_path / "monitor.db")
+    conn.execute("INSERT INTO models(id, active, last_trigger_at) VALUES ('demo', 1, 1000)")
+    for started, effort, status in ((50, "low", "ok"), (1000, "low", "ok"), (1100, "medium", "aborted")):
+        conn.execute(
+            "INSERT INTO runs(model,effort,seed,dataset_version,trigger,dims,params,started_at,status) "
+            "VALUES ('demo',?,'s','v1','schedule','[]','{}',?,?)",
+            (effort, started, status),
+        )
+    assert db.repair_last_triggers(conn) == 1
+    assert conn.execute("SELECT last_trigger_at FROM models WHERE id='demo'").fetchone()[0] == 50
