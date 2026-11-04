@@ -26,6 +26,21 @@ class PersistentDB(DB):
         self.last[model] = tick
 
 
+class RetryDB(PersistentDB):
+    def __init__(self, prices=None, last=None, completed=(), aborted=False):
+        super().__init__(prices, last)
+        self.completed = set(completed)
+        self.aborted = aborted
+
+    def retry_efforts(self, model, efforts, cycle_start, tolerance_s=60):
+        if not self.aborted:
+            return list(efforts)
+        return [effort for effort in efforts if effort not in self.completed]
+
+    def has_aborted_cycle(self, model, cycle_start, tolerance_s=60):
+        return self.aborted
+
+
 @pytest.mark.asyncio
 async def test_due_uses_tick_time_and_skips_unpriced_absent_and_running(monkeypatch):
     settings = Settings({m: SimpleNamespace(enabled=True, interval_h=1) for m in ("good", "missing", "busy", "unpriced")})
@@ -124,6 +139,42 @@ async def test_aborted_run_rolls_back_and_retries_next_tick():
     await d.tick(3600, models=["m"])
     await d.wait()
     assert db.triggers == [("m", 3600), ("m", 0), ("m", 3600), ("m", 0)]
+
+
+@pytest.mark.asyncio
+async def test_aborted_cycle_retries_only_uncompleted_efforts():
+    settings = Settings({"m": SimpleNamespace(enabled=True, interval_h=168, efforts=["low", "medium", "high"])})
+    db = RetryDB({"m"}, {"m": 0}, completed=("low", "medium"), aborted=True)
+    seen = []
+    d = Dispatcher(settings, db=db, runner=lambda model, **kwargs: seen.append(kwargs["efforts"]) or [])
+    await d.tick(3600, models=["m"])
+    await d.wait()
+    assert seen == [["high"]]
+
+
+@pytest.mark.asyncio
+async def test_completed_cycle_waits_for_interval():
+    settings = Settings({"m": SimpleNamespace(enabled=True, interval_h=1, efforts=["low", "medium"])})
+    db = RetryDB({"m"}, {"m": 3600}, completed=("low", "medium"), aborted=False)
+    seen = []
+    d = Dispatcher(settings, db=db, runner=lambda model, **kwargs: seen.append(kwargs.get("efforts")))
+    await d.tick(5400, models=["m"])
+    await d.wait()
+    assert seen == []
+    await d.tick(7200, models=["m"])
+    await d.wait()
+    assert seen == [None]
+
+
+@pytest.mark.asyncio
+async def test_reopened_cycle_with_no_completed_efforts_retries_all():
+    settings = Settings({"m": SimpleNamespace(enabled=True, interval_h=168, efforts=["low", "medium", "high"])})
+    db = RetryDB({"m"}, {"m": 0}, completed=(), aborted=True)
+    seen = []
+    d = Dispatcher(settings, db=db, runner=lambda model, **kwargs: seen.append(kwargs["efforts"]) or [])
+    await d.tick(3600, models=["m"])
+    await d.wait()
+    assert seen == [["low", "medium", "high"]]
 
 
 @pytest.mark.asyncio

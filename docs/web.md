@@ -43,7 +43,7 @@ Buttons and cards use the names from the `dimensions` query: the dimension key p
 
 ## Page: Compare (`/compare`)
 
-- Capability cards stacked vertically, one per dimension with data, in dimension order. `ui` rows show stars × 10 instead of latency.
+- Capability cards stacked vertically, one per dimension with data, in dimension order. Every row shows score, latency p50 and cost per correct; `ui` scores are stars × 10. The latency dot uses the same track for every dimension.
 - Each card is a horizontal ranking from the `ranking` query for that capability: one row per model × effort, ordered by rank, latest run of each. Rows without a score show no bar and are listed last.
 - A row shows: rank, `model@effort`, a bar whose length is the score (scale 0–100), a dot on the same track positioned by latency p50 on the card's own latency axis (0 to the card's maximum), and text at the end of the row: `score · latency · $cost per correct`, for example `91.7 · 14s · $0.012`. Writing rows add the judged value as `score · quality (judged) · latency · $cost`, for example `83.3 · 78 judged · 14s · $0.012`; `quality` never changes row order. A null cost shows `—`.
 - Cost is text only. It is not a sort key or a chart ([overview.md](overview.md#scope)).

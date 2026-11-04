@@ -29,7 +29,7 @@ The probe loop uses the idle interval only for models classified idle. Busy and 
 - Queue: FIFO. Up to `run.parallel_models` models run at once.
 - A cycle for a model: for each selected effort, in the order low, medium, high, run the model's selected dimensions. Efforts of one model never overlap; questions within a run are serial, so a model's own load does not distort its latency.
 - Question seed: the UTC date of the tick that triggered the cycle ([benchmark.md](benchmark.md#generation)). All models triggered on the same day get identical questions; repeated cycles on the same day repeat the questions, which also exposes run-to-run variance.
-- A run aborted after a question exhausts its attempts ([metrics.md](metrics.md#errors)) leaves `last_trigger_at` unchanged and is retried at the next heartbeat.
+- A run aborted after a question exhausts its attempts ([metrics.md](metrics.md#errors)) leaves `last_trigger_at` unchanged and is retried at the next heartbeat. On that reopened cycle, completed efforts (`ok`, `partial` or `unsupported`) since the cycle trigger are skipped; only efforts without a completed run are enqueued. If none completed, all selected efforts are enqueued. Manual runs always use their explicitly selected efforts.
 - On startup, runs left `running` become `aborted`; trigger timestamps without a corresponding started, non-aborted run are repaired to the previous completed run or cleared, and queued work is recomputed at the next tick.
 - Manual run: CLI, same code path, `trigger = 'manual'`, limited to chosen models, ignores intervals.
 

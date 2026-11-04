@@ -66,6 +66,8 @@ def test_ui_design_has_untranslated_efforts_and_history_copy():
     assert 'class="history-toggle"' in script
     assert 'aria-expanded="${shown}"' in script
     assert 'title="${tr(\'ui.history\')}"' in script
+    assert '>◷</button>' in script
+    assert '<div class="history-panel"><p class="muted">${tr(\'ui.noHistory\')}</p></div>' in script
 
 
 def test_ui_sections_use_separate_kind_and_subject_i18n_elements():

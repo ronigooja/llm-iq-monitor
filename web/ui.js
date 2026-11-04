@@ -53,11 +53,11 @@ if (typeof document !== 'undefined') (async () => {
   }
   function renderHistory(sample) {
     const rows = cache.get(cardKey(sample)) || [], older = historySamples(rows, sample);
-    if (!older.length) return `<p class="muted">${tr('ui.noHistory')}</p>`;
+     if (!older.length) return `<div class="history-panel"><p class="muted">${tr('ui.noHistory')}</p></div>`;
      return `<div class="history-panel"><div class="history">${older.map(row => `<article class="history-sample" data-id="${row.sample_id}">${image(row.svg)}${stars(row, cardKey(sample))}<time datetime="${esc(String(row.created_at || ''))}">${esc(date(row.created_at))}</time></article>`).join('')}</div></div>`;
   }
   function render() {
-     root.innerHTML = groupSamples(samples).map(section => `<section class="ui-section"><h2 class="ui-section-heading" title="${esc(section.prompt)}"><span class="ui-kind">${esc(tr(`ui.${section.promptKey}`))}</span><span class="ui-subject">${esc(tr(`ui.subject.${section.promptKey}`))}</span></h2><div class="sample-grid">${section.cards.map(sample => { const id = cardKey(sample), shown = open.has(id); return `<article class="sample" data-id="${sample.sample_id}" data-card-key="${esc(id)}">${image(sample.svg && sample.valid ? sample.svg : null)}<p>${esc(sample.model)} · ${esc(sample.effort)}</p>${stars(sample, id)}<button type="button" class="history-toggle" data-history="${esc(id)}" title="${tr('ui.history')}" aria-label="${tr('ui.history')}" aria-expanded="${shown}">⟲</button></article>${shown ? renderHistory(sample) : ''}`; }).join('')}</div></section>`).join('');
+     root.innerHTML = groupSamples(samples).map(section => `<section class="ui-section"><h2 class="ui-section-heading" title="${esc(section.prompt)}"><span class="ui-kind">${esc(tr(`ui.${section.promptKey}`))}</span><span class="ui-subject">${esc(tr(`ui.subject.${section.promptKey}`))}</span></h2><div class="sample-grid">${section.cards.map(sample => { const id = cardKey(sample), shown = open.has(id); return `<article class="sample" data-id="${sample.sample_id}" data-card-key="${esc(id)}">${image(sample.svg && sample.valid ? sample.svg : null)}<p>${esc(sample.model)} · ${esc(sample.effort)}</p>${stars(sample, id)}<button type="button" class="history-toggle" data-history="${esc(id)}" title="${tr('ui.history')}" aria-label="${tr('ui.history')}" aria-expanded="${shown}">◷</button></article>${shown ? renderHistory(sample) : ''}`; }).join('')}</div></section>`).join('');
     root.querySelectorAll('[data-history]').forEach(button => button.onclick = async () => {
       const id = button.dataset.history, sample = samples.find(row => cardKey(row) === id);
       if (open.has(id)) { open.delete(id); render(); return; }

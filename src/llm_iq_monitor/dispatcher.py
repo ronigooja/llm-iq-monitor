@@ -29,6 +29,7 @@ class Dispatcher:
         self.active: set[str] = set()
         self.last_trigger: dict[str, float] = {}
         self.previous_trigger: dict[str, float | None] = {}
+        self.selected_efforts: dict[str, list[str]] = {}
         self.deferred: set[str] = set()
         self._workers: list[asyncio.Task] = []
 
@@ -58,8 +59,25 @@ class Dispatcher:
             previous = self.last_trigger.get(model)
             if previous is None and self.db:
                 previous = await self._last_trigger(model)
+            retrying = False
+            retry_efforts = None
+            if previous is not None and self.db:
+                has_aborted = getattr(self.db, "has_aborted_cycle", None)
+                get_retry_efforts = getattr(self.db, "retry_efforts", None)
+                if has_aborted is not None and get_retry_efforts is not None:
+                    aborted = has_aborted(model, previous)
+                    if inspect.isawaitable(aborted):
+                        aborted = await aborted
+                    if aborted:
+                        retrying = True
+                        efforts = list(_get(effective, "efforts", ["medium"]))
+                        retry_efforts = get_retry_efforts(model, efforts, previous)
+                        if inspect.isawaitable(retry_efforts):
+                            retry_efforts = await retry_efforts
+                        if not retry_efforts:
+                            continue
             interval = float(_get(effective, "interval_h", 1)) * 3600
-            if previous is not None and _minute(tick) - _minute(previous) < interval:
+            if not retrying and previous is not None and _minute(tick) - _minute(previous) < interval:
                 continue
             if (trigger_busy := getattr(self.db, "model_busy", None)) is not None and _get(getattr(self.settings, "schedule", None), "defer_when_busy", True):
                 busy = trigger_busy(model, "")
@@ -69,6 +87,8 @@ class Dispatcher:
                     self.deferred.add(model)
                     continue
             self.deferred.discard(model)
+            if retry_efforts is not None:
+                self.selected_efforts[model] = retry_efforts
             self.previous_trigger[model] = previous
             self.last_trigger[model] = tick
             self.queue.append((model, tick, "schedule"))
@@ -123,7 +143,10 @@ class Dispatcher:
                     await self._set_trigger(model, tick)
                 if self.runner:
                     previous = self.previous_trigger.pop(model, None)
-                    result = self.runner(model, tick=tick, trigger=trigger)
+                    kwargs = dict(tick=tick, trigger=trigger)
+                    if trigger == "schedule" and model in self.selected_efforts:
+                        kwargs["efforts"] = self.selected_efforts.pop(model)
+                    result = self.runner(model, **kwargs)
                     if asyncio.iscoroutine(result):
                         result = await result
                     aborted = False

@@ -50,6 +50,27 @@ class DBAdapter:
         ).fetchone()
         return bool(row)
 
+    def retry_efforts(self, model, efforts, cycle_start, tolerance_s=60):
+        """Return only efforts still needing a run in an aborted cycle."""
+        if not self.has_aborted_cycle(model, cycle_start, tolerance_s):
+            return list(efforts)
+        rows = self.conn.execute(
+            """
+            SELECT DISTINCT effort FROM runs
+            WHERE model=? AND status IN ('ok', 'partial', 'unsupported')
+              AND started_at >= ? - ?
+            """,
+            (model, cycle_start, tolerance_s),
+        ).fetchall()
+        completed = {row[0] for row in rows}
+        return [effort for effort in efforts if effort not in completed]
+
+    def has_aborted_cycle(self, model, cycle_start, tolerance_s=60):
+        return bool(self.conn.execute(
+            "SELECT 1 FROM runs WHERE model=? AND status='aborted' AND started_at >= ? - ? LIMIT 1",
+            (model, cycle_start, tolerance_s),
+        ).fetchone())
+
     def __getattr__(self, name):
         function = getattr(db_module, name)
         def call(*args, **kwargs):
