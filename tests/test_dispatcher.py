@@ -137,6 +137,19 @@ async def test_busy_model_is_deferred_without_persisting_trigger():
     assert d.deferred == {"m"} and db.triggers == []
 
 
+@pytest.mark.asyncio
+async def test_auto_run_off_skips_scheduled_dispatch_but_manual_runs_remain_possible():
+    settings = Settings({"m": SimpleNamespace(enabled=True, interval_h=1)})
+    settings.schedule = SimpleNamespace(auto_run=False, defer_when_busy=True)
+    db = PersistentDB({"m"})
+    seen = []
+    d = Dispatcher(settings, db=db, runner=lambda model, **kwargs: seen.append(kwargs["trigger"]))
+    assert await d.tick(3600, models=["m"]) == []
+    assert db.triggers == []
+    await d.manual(["m"])
+    assert seen == ["manual"]
+
+
 def test_efforts_are_normalized_in_documented_order():
     from llm_iq_monitor.runner import run_model
     assert run_model.__doc__

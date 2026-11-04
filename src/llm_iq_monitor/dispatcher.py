@@ -33,6 +33,8 @@ class Dispatcher:
         self._workers: list[asyncio.Task] = []
 
     async def tick(self, tick_time: float | None = None, models: list[str] | None = None):
+        if not _get(getattr(self.settings, "schedule", None), "auto_run", True):
+            return list(self.queue)
         tick = self.clock() if tick_time is None else tick_time
         names = await self._models() if models is None else models
         for model in names:

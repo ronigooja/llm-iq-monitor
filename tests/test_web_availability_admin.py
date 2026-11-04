@@ -44,6 +44,7 @@ const t = (key, vars) => key + (vars ? JSON.stringify(vars) : '');
 def test_admin_html_has_every_availability_field_once_with_hint_and_order():
     fields = re.findall(r'data-field="(availability\.[a-z_.]+)"', HTML)
     assert fields == AVAILABILITY_FIELDS
+    assert 'data-field="schedule.auto_run" type="checkbox"' in HTML
     assert 'data-field="schedule.defer_when_busy" type="checkbox"' in HTML
     assert HTML.index('data-field="availability.enabled"') > HTML.index('id="limits-heading"')
     assert HTML.index('data-field="availability.enabled"') < HTML.index('id="judge-heading"')

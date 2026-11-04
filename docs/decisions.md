@@ -47,6 +47,7 @@
 | Connectivity check | Not needed before building the client |
 | Availability probe intervals | Use the idle interval only for classified-idle models; busy and unknown models use the busy interval, and models without probes are probed immediately ([config.md](config.md#availability-settings)) |
 | Trigger persistence | Persist `last_trigger_at` when a worker starts dequeued work, not when the dispatcher enqueues it; this prevents an in-memory queue from making a restart suppress work for an entire interval. Startup repairs legacy or interrupted trigger timestamps from run history. |
+| Automatic run switch | `schedule.auto_run` defaults on and gates only new scheduled benchmark dispatches; manual runs, probes and already-running work continue while it is off. |
 
 ## Known limits (to revisit with real data)
 

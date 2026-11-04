@@ -20,6 +20,7 @@ Precedence, highest first: environment variable `GATEWAY_API_KEY` (key only) →
 | `gateway.models_url` | `<base_url>/models` (`https://ai.nodemgr.uk/v1/models`) | Where the model list is loaded from |
 | `gateway.api_key` | none | Secret; stored in `secrets.env`, never in `settings.toml` |
 | `schedule.heartbeat_cron` | `0 * * * *` (UTC) | The single global cron ([scheduling.md](scheduling.md#heartbeat)) |
+| `schedule.auto_run` | `true` | Whether heartbeat ticks enqueue new automatic benchmark runs. Turning it off leaves running work, manual runs and availability probes unaffected |
 | `prices.url` | `https://models.dev/api.json` | Price list ([cost.md](cost.md#price-source)) |
 | `prices.refresh_cron` | `30 3 * * *` (UTC) | When the price list is refreshed |
 | `models.default_interval_h` | 6 | Interval for models without their own |
@@ -68,7 +69,7 @@ The web console at `/admin/` ([web.md](web.md#page-admin-admin), [deployment.md]
 |---|---|
 | Gateway | Base URL, models URL, key (write-only, shown only as set / not set), test connection (HTTP status, model count; never the key) |
 | Models | One row per known model: state, price, interval, dimensions, efforts. Models without a price show "no price" and cannot be enabled. Multi-select with bulk apply; refresh the list from the gateway. A newly enabled model gets the defaults |
-| Defaults and heartbeat | `schedule.heartbeat_cron` (next five ticks), `models.default_*`, `prices.*` |
+| Defaults and heartbeat | `schedule.heartbeat_cron` (next five ticks), `schedule.auto_run`, `models.default_*`, `prices.*` |
 | Run limits | Parallel models, timeout, max tokens, attempts, retry delay, round-trip fallback, reply retention |
 | Judge | Judge model (only models with a price) and effort; judge calls add cost |
 | Availability probes | Enablement, probe effort and timeout, idle/busy intervals, classification thresholds, current window, minimum samples, retention, and `schedule.defer_when_busy` |

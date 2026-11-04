@@ -61,6 +61,7 @@ class Gateway(BaseModel):
 
 class Schedule(BaseModel):
     heartbeat_cron: str = "0 * * * *"
+    auto_run: bool = True
     defer_when_busy: bool = True
 
     @field_validator("heartbeat_cron")
