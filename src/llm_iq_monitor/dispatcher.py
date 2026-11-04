@@ -66,10 +66,9 @@ class Dispatcher:
                 if busy:
                     self.deferred.add(model)
                     continue
-            self.last_trigger[model] = tick
             self.deferred.discard(model)
             self.previous_trigger[model] = previous
-            await self._set_trigger(model, tick)
+            self.last_trigger[model] = tick
             self.queue.append((model, tick, "schedule"))
         await self._ensure_workers()
         return list(self.queue)
@@ -118,6 +117,8 @@ class Dispatcher:
             model, tick, trigger = self.queue.popleft()
             self.active.add(model)
             try:
+                if trigger == "schedule":
+                    await self._set_trigger(model, tick)
                 if self.runner:
                     previous = self.previous_trigger.pop(model, None)
                     result = self.runner(model, tick=tick, trigger=trigger)

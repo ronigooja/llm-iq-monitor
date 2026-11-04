@@ -73,6 +73,7 @@ async def _settings_main(settings=None, *, conn=None, gateway_client=None, stop_
     conn = conn or db_module.connect()
     db_module.migrate(conn)
     db_module.mark_running_aborted(conn)
+    db_module.repair_last_triggers(conn)
     conn.execute("DELETE FROM availability_config")
     conn.execute("INSERT INTO availability_config(window_min,min_samples,updated_at) VALUES(?,?,?)",
                  (settings.availability.window_min, settings.availability.min_samples, time.time()))

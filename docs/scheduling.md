@@ -16,7 +16,7 @@ On every tick, for each enabled model, in this order:
 2. Skip it if its previous cycle is running or queued.
 3. It is due if it never ran, or `tick_time − last_trigger_at ≥ interval_h` ([config.md](config.md#per-model-settings)), both times truncated to the whole minute so tick jitter of a few milliseconds cannot delay a run by one heartbeat.
 
-A due model gets `last_trigger_at = tick_time` and is queued. The comparison uses tick times, not the wall-clock start of the cycle, so a cycle that starts late or runs long does not push the next one back by a heartbeat. The interval therefore resolves to the heartbeat period: with an hourly heartbeat, a 6 h interval fires every 6th tick.
+A due model is recorded in the in-memory dispatch state and queued. `last_trigger_at` is written only when a worker dequeues the model and starts its cycle, so a process restart cannot lose queued work that was already recorded as triggered. The comparison uses tick times, not the wall-clock start of the cycle, so a cycle that starts late or runs long does not push the next one back by a heartbeat. The interval therefore resolves to the heartbeat period: with an hourly heartbeat, a 6 h interval fires every 6th tick.
 
 Intervals shorter than the heartbeat period behave as one heartbeat period. A newly enabled model is due at the next tick.
 
@@ -30,7 +30,7 @@ The probe loop uses the idle interval only for models classified idle. Busy and 
 - A cycle for a model: for each selected effort, in the order low, medium, high, run the model's selected dimensions. Efforts of one model never overlap; questions within a run are serial, so a model's own load does not distort its latency.
 - Question seed: the UTC date of the tick that triggered the cycle ([benchmark.md](benchmark.md#generation)). All models triggered on the same day get identical questions; repeated cycles on the same day repeat the questions, which also exposes run-to-run variance.
 - A run aborted after a question exhausts its attempts ([metrics.md](metrics.md#errors)) leaves `last_trigger_at` unchanged and is retried at the next heartbeat.
-- On startup, runs left `running` become `aborted`; queued work is dropped and recomputed at the next tick.
+- On startup, runs left `running` become `aborted`; trigger timestamps without a corresponding started, non-aborted run are repaired to the previous completed run or cleared, and queued work is recomputed at the next tick.
 - Manual run: CLI, same code path, `trigger = 'manual'`, limited to chosen models, ignores intervals.
 
 ## Request parameters

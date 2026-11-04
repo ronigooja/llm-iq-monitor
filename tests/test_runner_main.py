@@ -197,3 +197,25 @@ def test_manual_path_passes_tick_as_tick_time(monkeypatch):
 
     src = inspect.getsource(runner_main._manual_main)
     assert "tick_time=tick" in src
+
+
+def test_startup_repairs_enqueue_only_trigger(tmp_path):
+    conn = db.connect(tmp_path / "monitor.db")
+    conn.execute("INSERT INTO models(id, active, last_trigger_at) VALUES ('demo', 1, 1000)")
+    conn.execute(
+        "INSERT INTO runs(model,effort,seed,dataset_version,trigger,dims,params,started_at,status) "
+        "VALUES ('demo','low','s','v1','schedule','[]','{}',100,'ok')"
+    )
+    assert db.repair_last_triggers(conn) == 1
+    assert conn.execute("SELECT last_trigger_at FROM models WHERE id='demo'").fetchone()[0] == 100
+
+
+def test_startup_repair_does_not_count_aborted_run(tmp_path):
+    conn = db.connect(tmp_path / "monitor.db")
+    conn.execute("INSERT INTO models(id, active, last_trigger_at) VALUES ('demo', 1, 1000)")
+    conn.execute(
+        "INSERT INTO runs(model,effort,seed,dataset_version,trigger,dims,params,started_at,status) "
+        "VALUES ('demo','low','s','v1','schedule','[]','{}',1000,'aborted')"
+    )
+    assert db.repair_last_triggers(conn) == 1
+    assert conn.execute("SELECT last_trigger_at FROM models WHERE id='demo'").fetchone()[0] is None

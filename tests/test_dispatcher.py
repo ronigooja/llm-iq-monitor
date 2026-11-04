@@ -20,6 +20,12 @@ class DB:
     def set_last_trigger(self, model, tick): self.triggers.append((model, tick))
 
 
+class PersistentDB(DB):
+    def set_last_trigger(self, model, tick):
+        super().set_last_trigger(model, tick)
+        self.last[model] = tick
+
+
 @pytest.mark.asyncio
 async def test_due_uses_tick_time_and_skips_unpriced_absent_and_running(monkeypatch):
     settings = Settings({m: SimpleNamespace(enabled=True, interval_h=1) for m in ("good", "missing", "busy", "unpriced")})
@@ -65,6 +71,70 @@ async def test_fifo_parallel_limit_and_manual_trigger(monkeypatch):
     await d.tick(1)
     await asyncio.gather(*d._workers)
     assert order == ["a", "b", "c"] and maximum <= 2
+
+
+@pytest.mark.asyncio
+async def test_restart_retries_models_that_were_only_queued():
+    settings = Settings({m: SimpleNamespace(enabled=True, interval_h=1) for m in "abc"})
+    db = PersistentDB(set("abc"))
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def first_runner(model, **kwargs):
+        started.set()
+        await release.wait()
+
+    first = Dispatcher(settings, db=db, runner=first_runner)
+    await first.tick(0, models=["a", "b", "c"])
+    await started.wait()
+    first._workers[0].cancel()
+    await asyncio.gather(first._workers[0], return_exceptions=True)
+
+    seen = []
+    second = Dispatcher(settings, db=db, runner=lambda model, **kwargs: seen.append(model))
+    await second.tick(3600, models=["a", "b", "c"])
+    await second.wait()
+    assert "b" in seen and "c" in seen
+
+
+@pytest.mark.asyncio
+async def test_completed_run_respects_interval():
+    settings = Settings({"m": SimpleNamespace(enabled=True, interval_h=1)})
+    db = PersistentDB({"m"}, {"m": 3600})
+    seen = []
+    d = Dispatcher(settings, db=db, runner=lambda model, **kwargs: seen.append(model))
+    await d.tick(5400, models=["m"])
+    assert seen == []
+    await d.tick(7200, models=["m"])
+    await d.wait()
+    assert seen == ["m"]
+
+
+@pytest.mark.asyncio
+async def test_aborted_run_rolls_back_and_retries_next_tick():
+    settings = Settings({"m": SimpleNamespace(enabled=True, interval_h=1)})
+    settings.run.parallel_models = 1
+    db = PersistentDB({"m"}, {"m": 0})
+    db.statuses = {1: "aborted"}
+    d = Dispatcher(settings, db=db, runner=lambda model, **kwargs: [1])
+    db.run_status = lambda run_id: db.statuses[run_id]
+    await d.tick(3600, models=["m"])
+    await d.wait()
+    assert db.last["m"] == 0
+    await d.tick(3600, models=["m"])
+    await d.wait()
+    assert db.triggers == [("m", 3600), ("m", 0), ("m", 3600), ("m", 0)]
+
+
+@pytest.mark.asyncio
+async def test_busy_model_is_deferred_without_persisting_trigger():
+    settings = Settings({"m": SimpleNamespace(enabled=True, interval_h=1)})
+    settings.schedule = SimpleNamespace(defer_when_busy=True)
+    db = PersistentDB({"m"})
+    db.model_busy = lambda model, effort="": True
+    d = Dispatcher(settings, db=db, runner=lambda model, **kwargs: None)
+    await d.tick(3600, models=["m"])
+    assert d.deferred == {"m"} and db.triggers == []
 
 
 def test_efforts_are_normalized_in_documented_order():

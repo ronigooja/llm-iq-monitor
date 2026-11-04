@@ -46,6 +46,7 @@
 | Excluded tests | Seahorse-emoji questions. The SVG/pelican test is no longer excluded: it is the `ui` dimension with variants, rated by a person |
 | Connectivity check | Not needed before building the client |
 | Availability probe intervals | Use the idle interval only for classified-idle models; busy and unknown models use the busy interval, and models without probes are probed immediately ([config.md](config.md#availability-settings)) |
+| Trigger persistence | Persist `last_trigger_at` when a worker starts dequeued work, not when the dispatcher enqueues it; this prevents an in-memory queue from making a restart suppress work for an entire interval. Startup repairs legacy or interrupted trigger timestamps from run history. |
 
 ## Known limits (to revisit with real data)
 
