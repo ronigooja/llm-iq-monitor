@@ -17,10 +17,10 @@ Public, read-only, JSON, no authentication. Provided by [Datasette](https://data
 | Name | Parameters | Returns |
 |---|---|---|
 | `best` | `score_tolerance`, `price_tolerance`, `min_availability`, `exclude`, `exclude_reasoning`, `exclude_code`, `exclude_instruction`, `exclude_write_zh`, `exclude_write_en`, `exclude_ui` (all optional) | Six routing rows. `min_availability` defaults to 0.9; 0 disables filtering ([Router usage](#router-usage)). |
-| `ranking` | `dim` (required), `effort` (optional) | Ranking for one capability |
+| `ranking` | `dim` (required), `effort` (optional) | Ranking for one capability among enabled models |
 | `availability_now` | none | Current weighted probe availability per model × effort |
 | `series` | `model`, `effort`, `dim` (all required), `from`, `to`, `dataset_version` (optional) | History points, time ascending, at most 2000 rows |
-| `models` | none | One row per model × effort that has finished runs |
+| `models` | none | One row per enabled model × effort that has finished runs |
 | `dimensions` | none | The dimensions with a one-line "use it when" description, in display order ([benchmark.md](benchmark.md#dimensions)) |
 | `ui_samples` | `model`, `effort` (optional) | Latest SVG samples with stars, newest first, at most 200 rows |
 | `rate` | `sample_id`, `stars` (POST, key required) | Sets the stars of one sample; the only write endpoint |
@@ -29,7 +29,7 @@ Public, read-only, JSON, no authentication. Provided by [Datasette](https://data
 Columns:
 - `ranking`: `rank`, `model`, `effort`, `run_id`, `finished_at`, `dataset_version`, `status`, `score`, `quality`, `latency_p50`, `latency_p95`, `ttft_p50`, `time_total`, `n`, `n_err`, `cost_usd`, `cost_per_correct`.
 - `availability_now`: `model`, `effort`, `availability`, `samples`, `state`, `latency_p50`, `last_probe_at`.
-- `best`: `dim`, `use_when`, `model`, `effort`. Selection uses score, derived `cost_per_correct` and `latency_p50`, but only these four routing fields are exposed.
+- `best`: `dim`, `use_when`, `model`, `effort`. Selection uses only enabled models, score, derived `cost_per_correct` and `latency_p50`, but only these four routing fields are exposed.
 - `series`: `t`, `run_id`, `dataset_version`, `score`, `quality`, `latency_p50`, `latency_p95`, `ttft_p50`, `time_total`, `cost_per_correct`.
 - `models`: `model`, `effort`, `active`, `dims`, `last_finished_at`, `last_status`.
 - `health`: `last_finished_at`, `running_runs`, `prices_fetched_at`, `dataset_version` (the current version: that of the most recently started run).
@@ -38,6 +38,8 @@ Columns:
 - `rate`: returns `{"ok": true, "message": ...}`. A star value outside 1–10 or an unknown sample id changes 0 rows and still returns `ok`; the caller must read the sample back.
 
 Runs with status `unsupported`, `aborted` or `running` are excluded from `ranking` and `series`. `ranking` and `models` show only runs of the current dataset version (see `health`); `series` returns all versions unless `dataset_version` is given.
+
+`ranking`, `models` and `best` hide models whose settings are disabled; historical runs remain stored and re-enabling a model makes them eligible again. Availability queries follow their probe window and retention rules rather than this setting.
 
 ### Router usage
 

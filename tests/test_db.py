@@ -17,6 +17,23 @@ def test_schema_and_helpers(tmp_path):
     assert sqlite3.connect(path).execute("select count(*) from runs").fetchone()[0] == 1
 
 
+def test_migration_adds_enabled_to_old_models_table():
+    conn = sqlite3.connect(":memory:")
+    conn.executescript("""
+        CREATE TABLE models (id TEXT PRIMARY KEY, active INTEGER NOT NULL,
+                             first_seen REAL, last_seen REAL, last_trigger_at REAL);
+        INSERT INTO models VALUES ('old', 1, 1, 2, 3);
+        PRAGMA user_version=6;
+    """)
+    from llm_iq_monitor.db import migrate
+    migrate(conn)
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(models)")}
+    assert "enabled" in columns
+    assert conn.execute("SELECT enabled FROM models WHERE id='old'").fetchone()[0] == 1
+    migrate(conn)
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 7
+
+
 def test_ui_samples_and_due_matrix():
     conn = connect(":memory:")
     conn.execute("INSERT INTO models(id, active) VALUES ('m', 1)")

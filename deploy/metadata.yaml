@@ -33,7 +33,8 @@ databases:
                      PARTITION BY r.model, r.effort
                      ORDER BY r.finished_at DESC, r.id DESC
                    ) AS rn
-            FROM runs AS r JOIN run_dims AS d ON d.run_id = r.id
+             FROM runs AS r JOIN run_dims AS d ON d.run_id = r.id
+                         JOIN models AS m ON m.id = r.model AND m.enabled = 1
             WHERE r.status NOT IN ('unsupported', 'aborted', 'running')
               AND r.finished_at IS NOT NULL
               AND d.dim = :dim
@@ -178,7 +179,8 @@ databases:
                      PARTITION BY r.model, r.effort, d.dim
                      ORDER BY r.finished_at DESC, r.id DESC
                    ) AS rn
-            FROM runs AS r JOIN run_dims AS d ON d.run_id = r.id
+             FROM runs AS r JOIN run_dims AS d ON d.run_id = r.id
+                         JOIN models AS m ON m.id = r.model AND m.enabled = 1
             CROSS JOIN input
             WHERE r.status NOT IN ('unsupported', 'aborted', 'running')
               AND r.finished_at IS NOT NULL
@@ -395,7 +397,7 @@ databases:
                  ) x) AS dims,
                  f.finished_at AS last_finished_at, f.status AS last_status
           FROM finished f JOIN models m ON m.id = f.model
-          WHERE f.rn = 1
+           WHERE f.rn = 1 AND m.enabled = 1
           ORDER BY f.model, f.effort
       health:
         allow: true

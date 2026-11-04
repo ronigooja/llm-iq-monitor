@@ -24,7 +24,7 @@ from starlette.routing import Route
 
 from .admin_logic import estimate_budget, fetch_models, model_rows, next_heartbeat_ticks, test_connection
 from .db import connect
-from .discovery import sync_models
+from .discovery import sync_enabled, sync_models
 from .prices import load_price_index
 from .settings import DIMS, EFFORTS, Settings, load_settings, save_api_key, save_settings
 
@@ -353,6 +353,7 @@ async def refresh_models(request: Request) -> Response:
         conn = connect()
         try:
             sync_models(conn, ids)
+            sync_enabled(conn, settings)
         finally:
             conn.close()
         return _json(_state_payload())

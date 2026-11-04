@@ -9,7 +9,7 @@ def monitor_db(tmp_path):
     db = connect(path)
     db.executescript(
         """
-        INSERT INTO models VALUES ('alpha', 1, 1, 100, 100), ('beta', 1, 1, 100, 100);
+        INSERT INTO models VALUES ('alpha', 1, 1, 100, 100, 1), ('beta', 1, 1, 100, 100, 1);
         INSERT INTO prices VALUES ('alpha', 'openai', 1, 2, 120);
         INSERT INTO runs VALUES (1,'alpha','medium','20261102','v1','schedule','["math","logic","write_zh","write_en"]','{}',1,2,120,90,100,'ok',10,0.1,2,NULL,NULL,NULL);
         INSERT INTO runs VALUES (2,'beta','low','20261102','v1','schedule','["math","write_zh"]','{}',1,2,120,90,101,'partial',11,0.2,2,NULL,NULL,NULL);

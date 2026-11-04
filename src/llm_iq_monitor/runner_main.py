@@ -108,6 +108,7 @@ async def _settings_main(settings=None, *, conn=None, gateway_client=None, stop_
 
     model_list = await fetch_models()
     discovery.sync_models(conn, model_list)
+    discovery.sync_enabled(conn, settings)
     if conn.execute("SELECT 1 FROM prices LIMIT 1").fetchone() is None:
         await prices.refresh_prices(conn, settings.prices.url, client=prices_client)
 
@@ -117,6 +118,7 @@ async def _settings_main(settings=None, *, conn=None, gateway_client=None, stop_
         nonlocal current_models
         current_models = await fetch_models()
         discovery.sync_models(conn, current_models)
+        discovery.sync_enabled(conn, settings)
         return current_models
 
     def default_gateway_factory(current_settings):
@@ -157,6 +159,7 @@ async def _settings_main(settings=None, *, conn=None, gateway_client=None, stop_
         conn.execute("DELETE FROM availability_config")
         conn.execute("INSERT INTO availability_config(window_min,min_samples,updated_at) VALUES(?,?,?)",
                      (settings.availability.window_min, settings.availability.min_samples, time.time()))
+        discovery.sync_enabled(conn, settings)
         conn.execute("DELETE FROM availability_runtime")
         conn.execute("INSERT INTO availability_runtime(now,interval_s,updated_at) VALUES(?,?,?)",
                      (time.time(), settings.availability.probe_idle_every_min * 60, time.time()))

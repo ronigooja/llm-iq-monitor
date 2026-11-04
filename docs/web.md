@@ -34,7 +34,7 @@ Buttons and cards use the names from the `dimensions` query: the dimension key p
 
 ## Page: Scores (`/`)
 
-- Model cards stacked vertically, ordered alphabetically by model id. Models without finished runs are not shown.
+- Model cards stacked vertically, ordered alphabetically by model id. Only enabled models with finished runs are listed; disabling a model hides its card without deleting history ([api.md](api.md#queries)).
 - Each card has a header (model id, availability, last run time), two button rows, and one chart.
   - Capability buttons: the dimensions the model has runs for (up to six). Initial: the first in dimension order.
   - Effort buttons: the efforts the model has runs for. Initial: `medium`, else `high`, else `low`.
@@ -44,7 +44,7 @@ Buttons and cards use the names from the `dimensions` query: the dimension key p
 ## Page: Compare (`/compare`)
 
 - Capability cards stacked vertically, one per dimension with data, in dimension order. Every row shows score, latency p50 and cost per correct; `ui` scores are stars × 10 and its cost is the run's total `cost_usd` marked `total`, because `ui` has no correct count. The latency dot uses the same track for every dimension.
-- Each card is a horizontal ranking from the `ranking` query for that capability: one row per model × effort, ordered by rank, latest run of each. Rows without a score show no bar and are listed last.
+- Each card is a horizontal ranking from the `ranking` query for that capability: one row per enabled model × effort, ordered by rank, latest run of each. Rows without a score show no bar and are listed last.
 - A row shows: rank, `model@effort`, a bar whose length is the score (scale 0–100), a dot on the same track positioned by latency p50 on the card's own latency axis (0 to the card's maximum), and text at the end of the row: `score · latency · $cost per correct`, for example `91.7 · 14s · $0.012`. Writing rows add the judged value as `score · quality (judged) · latency · $cost`, for example `83.3 · 78 judged · 14s · $0.012`; `quality` never changes row order. A null cost shows `—`.
 - Cost is text only. It is not a sort key or a chart ([overview.md](overview.md#scope)).
 

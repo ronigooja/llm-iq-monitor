@@ -9,7 +9,8 @@ models(
   id TEXT PRIMARY KEY,          -- gateway model id
   active INTEGER NOT NULL,      -- 0 when absent from the gateway model list
   first_seen REAL, last_seen REAL,
-  last_trigger_at REAL          -- heartbeat tick time of the last triggered cycle
+  last_trigger_at REAL,         -- heartbeat tick time of the last triggered cycle
+  enabled INTEGER NOT NULL      -- 1 when enabled in settings, 0 otherwise
 );
 
 prices(
@@ -92,7 +93,7 @@ Probe tables are `probes`, `probe_state` and `availability_config`; the probe in
 
 ## Migrations
 
-Schema version in `PRAGMA user_version`. Migrations are forward-only SQL steps run by the CLI at startup. Step 2 adds the writing and judge columns; step 3 adds `ui_samples` and the error-detail columns of `results` (`http_status`, `error_detail`); existing rows keep null there and all earlier data stays untouched. The deprecated availability columns remain nullable in this package's schema and are no longer written or read, so old databases migrate without a risky column drop; the availability package removes them with its dependent queries.
+Schema version in `PRAGMA user_version`. Migrations are forward-only SQL steps run by the CLI at startup. Step 2 adds the writing and judge columns; step 3 adds `ui_samples` and the error-detail columns of `results` (`http_status`, `error_detail`); step 7 adds `models.enabled` with existing rows enabled by default. The runner synchronizes it from effective per-model settings at startup, settings reload, and gateway refresh; the admin model refresh does the same. The deprecated availability columns remain nullable in this package's schema and are no longer written or read, so old databases migrate without a risky column drop; the availability package removes them with its dependent queries.
 
 ## Backup
 

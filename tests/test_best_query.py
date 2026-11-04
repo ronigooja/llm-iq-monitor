@@ -34,10 +34,10 @@ def add_candidate_db(path):
     db.executescript(
         """
         INSERT INTO models VALUES
-          ('gamma-fast', 1, 1, 100, 100),
-          ('DELTA-cheap', 1, 1, 100, 100),
-          ('epsilon-null-price', 1, 1, 100, 100),
-          ('zeta-slow', 1, 1, 100, 100);
+          ('gamma-fast', 1, 1, 100, 100, 1),
+          ('DELTA-cheap', 1, 1, 100, 100, 1),
+          ('epsilon-null-price', 1, 1, 100, 100, 1),
+          ('zeta-slow', 1, 1, 100, 100, 1);
         INSERT INTO runs VALUES
           (10,'gamma-fast','high','20261103','v1','schedule','["reasoning","code","ui"]','{}',1,2,120,90,110,'ok',10,0.1,2,NULL,NULL,NULL),
           (11,'DELTA-cheap','low','20261103','v1','schedule','["reasoning","code","ui"]','{}',1,2,120,90,111,'ok',10,0.1,2,NULL,NULL,NULL),
@@ -142,6 +142,32 @@ async def test_best_candidates_match_ranking_for_each_dimension(client, monitor_
         assert ranking.status_code == 200, ranking.text
         models = {(row["model"], row["effort"]) for row in ranking.json() if row["score"] is not None}
         assert (best_rows[dim]["model"], best_rows[dim]["effort"]) in models
+
+
+@pytest.mark.asyncio
+async def test_disabled_model_is_hidden_and_reappears_when_enabled(client, monitor_db):
+    add_candidate_db(monitor_db)
+    db = sqlite3.connect(monitor_db)
+    db.execute("UPDATE models SET enabled=0 WHERE id='gamma-fast'")
+    db.commit()
+    db.close()
+
+    ranking = await client.get("/monitor/ranking.json", params={"dim": "reasoning", "_shape": "array"})
+    assert ranking.status_code == 200
+    assert "gamma-fast" not in {row["model"] for row in ranking.json()}
+    models = await client.get("/monitor/models.json", params={"_shape": "array"})
+    assert models.status_code == 200
+    assert "gamma-fast" not in {row["model"] for row in models.json()}
+    rows = await best(client)
+    assert "gamma-fast" not in {row["model"] for row in rows}
+    db = sqlite3.connect(monitor_db)
+    assert db.execute("SELECT COUNT(*) FROM runs WHERE model='gamma-fast'").fetchone()[0] > 0
+    db.execute("UPDATE models SET enabled=1 WHERE id='gamma-fast'")
+    db.commit()
+    db.close()
+    ranking = await client.get("/monitor/ranking.json", params={"dim": "reasoning", "_shape": "array"})
+    assert "gamma-fast" in {row["model"] for row in ranking.json()}
+    assert any(row["model"] == "gamma-fast" for row in await best(client))
 
 
 @pytest.mark.asyncio

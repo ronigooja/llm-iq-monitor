@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 UI_HISTORY = 5
 
 
@@ -34,7 +34,8 @@ def migrate(conn: sqlite3.Connection):
         conn.executescript("""
         CREATE TABLE IF NOT EXISTS models (
           id TEXT PRIMARY KEY, active INTEGER NOT NULL, first_seen REAL,
-          last_seen REAL, last_trigger_at REAL
+          last_seen REAL, last_trigger_at REAL,
+          enabled INTEGER NOT NULL DEFAULT 1
         );
         CREATE TABLE IF NOT EXISTS prices (
           model TEXT PRIMARY KEY, provider TEXT NOT NULL,
@@ -164,6 +165,12 @@ def migrate(conn: sqlite3.Connection):
         """)
         conn.execute("PRAGMA user_version=6")
         version = 6
+    if version < 7:
+        existing = {row[1] for row in conn.execute("PRAGMA table_info(models)")}
+        if "enabled" not in existing:
+            conn.execute("ALTER TABLE models ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1")
+        conn.execute("PRAGMA user_version=7")
+        version = 7
     return version
 
 

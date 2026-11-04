@@ -16,7 +16,7 @@ from llm_iq_monitor.runner import run_model
 @pytest.mark.asyncio
 async def test_full_cycle_real_db_and_datasette(tmp_path, monkeypatch):
     conn = db.connect(tmp_path / "monitor.db")
-    conn.execute("INSERT INTO models VALUES ('demo', 1, 0, 0, NULL)")
+    conn.execute("INSERT INTO models VALUES ('demo', 1, 0, 0, NULL, 1)")
     conn.execute("INSERT INTO prices VALUES ('demo', 'openai', 2, 4, 1234)")
     questions = {
         dim: Question(f"{dim}-1", dim, f"prompt-{dim}", "code" if dim == "code" else "exact",

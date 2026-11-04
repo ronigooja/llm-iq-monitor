@@ -22,3 +22,11 @@ def sync_models(conn, ids):
     conn.execute("UPDATE models SET active=0")
     for model in ids:
         conn.execute("INSERT INTO models(id,active,first_seen,last_seen) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET active=1,last_seen=excluded.last_seen", (model, 1, now, now))
+
+
+def sync_enabled(conn, settings):
+    """Persist effective settings visibility for every known model."""
+    conn.execute("UPDATE models SET enabled=0")
+    for row in conn.execute("SELECT id FROM models"):
+        if settings.effective(row[0]).enabled:
+            conn.execute("UPDATE models SET enabled=1 WHERE id=?", (row[0],))
