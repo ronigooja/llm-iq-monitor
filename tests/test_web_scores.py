@@ -23,3 +23,9 @@ console.log(JSON.stringify({{series: options.series.length, legend: Boolean(opti
     result = subprocess.run(["node", "-e", harness], cwd=ROOT, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout) == {"series": 4, "legend": False}
+
+
+def test_chart_legend_hides_time_entry_and_uses_round_markers():
+    css = (ROOT / "web/style.css").read_text()
+    assert ".u-legend .u-series:first-child { display:none; }" in css
+    assert ".u-legend .u-marker { border-radius:50%; }" in css

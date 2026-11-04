@@ -106,3 +106,6 @@ main > header + section, main > header + #ranges { margin-top:1rem; }
 .av-lvl-bad { background:#c62828; }
 .av-lvl-none { background:color-mix(in srgb, var(--line) 80%, transparent); }
 .av-history { min-width:12rem; }
+
+.u-legend .u-series:first-child { display:none; }
+.u-legend .u-marker { border-radius:50%; }

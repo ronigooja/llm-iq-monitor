@@ -38,7 +38,7 @@ Buttons and cards use the names from the `dimensions` query: the dimension key p
 - Each card has a header (model id, availability, last run time), two button rows, and one chart.
   - Capability buttons: the dimensions the model has runs for (up to six). Initial: the first in dimension order.
   - Effort buttons: the efforts the model has runs for. Initial: `medium`, else `high`, else `low`.
-- The chart shows the selected capability and effort over time: score as a solid line on the left axis (fixed 0–100), latency p50 as a dashed line on the right axis (auto, linear). For `write_zh` and `write_en`, `quality` is added as a dotted line on the left axis and labelled "judged".
+- The chart shows the selected capability and effort over time: score as a solid line on the left axis (fixed 0–100), latency p50 as a dashed line on the right axis (auto, linear). The legend hides uPlot's time entry and shows round markers like the chart points. For `write_zh` and `write_en`, `quality` is added as a dotted line on the left axis and labelled "judged".
 - A card loads its data (`series`, plus `ranking` for the header) when it scrolls into view.
 
 ## Page: Compare (`/compare`)
