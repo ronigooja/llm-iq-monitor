@@ -184,3 +184,24 @@ async def test_best_ui_price_step_uses_total_cost(client, monitor_db):
     assert by_dim["ui"]["model"] == "DELTA-cheap"
     by_dim = {row["dim"]: row for row in await best(client, price_tolerance="500")}
     assert by_dim["ui"]["model"] == "gamma-fast"
+
+
+@pytest.mark.asyncio
+async def test_ui_samples_hide_disabled_model_and_show_it_again(client, monitor_db):
+    add_candidate_db(monitor_db)
+
+    async def models():
+        response = await client.get("/monitor/ui_samples.json", params={"_shape": "array"})
+        assert response.status_code == 200, response.text
+        return {row["model"] for row in response.json()}
+
+    assert "gamma-fast" in await models()
+    db = sqlite3.connect(monitor_db)
+    db.execute("UPDATE models SET enabled=0 WHERE id='gamma-fast'")
+    db.commit()
+    assert "gamma-fast" not in await models()
+    assert db.execute("SELECT COUNT(*) FROM ui_samples").fetchone()[0] >= 2
+    db.execute("UPDATE models SET enabled=1 WHERE id='gamma-fast'")
+    db.commit()
+    db.close()
+    assert "gamma-fast" in await models()

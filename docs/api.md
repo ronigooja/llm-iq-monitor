@@ -22,7 +22,7 @@ Public, read-only, JSON, no authentication. Provided by [Datasette](https://data
 | `series` | `model`, `effort`, `dim` (all required), `from`, `to`, `dataset_version` (optional) | History points, time ascending, at most 2000 rows |
 | `models` | none | One row per enabled model × effort that has finished runs |
 | `dimensions` | none | The dimensions with a one-line "use it when" description, in display order ([benchmark.md](benchmark.md#dimensions)) |
-| `ui_samples` | `model`, `effort` (optional) | Latest SVG samples with stars, newest first, at most 200 rows |
+| `ui_samples` | `model`, `effort` (optional) | Latest SVG samples of enabled models with stars, newest first, at most 200 rows |
 | `rate` | `sample_id`, `stars` (POST, key required) | Sets the stars of one sample; the only write endpoint |
 | `health` | none | Liveness of the pipeline |
 

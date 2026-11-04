@@ -423,6 +423,7 @@ databases:
           SELECT u.id AS sample_id, r.model, r.effort, u.prompt_key, u.prompt,
                  u.svg, u.valid, u.stars, u.created_at
           FROM ui_samples u JOIN runs r ON r.id = u.run_id
+                            JOIN models m ON m.id = r.model AND m.enabled = 1
           WHERE (:model = '' OR r.model = :model)
             AND (:effort = '' OR r.effort = :effort)
           ORDER BY u.created_at DESC, u.id DESC
