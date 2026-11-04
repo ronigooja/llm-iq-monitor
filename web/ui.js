@@ -46,7 +46,6 @@ if (typeof document !== 'undefined') (async () => {
     'ui.classic': '经典', 'ui.variant': '变体', 'ui.history': '历史', 'ui.noHistory': '暂无历史'
   }});
   const image = svg => svg ? `<img alt="${tr('ui.svgSample')}" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}">` : `<div class="placeholder">${tr('ui.invalid')}</div>`;
-  const date = value => value ? new Date(Number(value) * 1000).toLocaleDateString(i18n.lang() === 'zh' ? 'zh-CN' : 'en') : '—';
   function stars(sample, historyKey = '') {
     const controls = key && sample.valid && sample.svg ? Array.from({ length: 10 }, (_, i) => `<button type="button" data-star="${i + 1}" aria-label="${tr('ui.starCount', { n: i + 1 })}">${i + 1 <= sample.stars ? '★' : '☆'}</button>`).join('') : sample.stars ? `${'★'.repeat(sample.stars)}${'☆'.repeat(10 - sample.stars)}` : tr('ui.notRated');
     return `<div class="stars" data-history-key="${esc(historyKey)}" aria-label="${sample.stars ? tr('ui.stars', { n: sample.stars }) : tr('ui.notRated')}">${controls}</div>`;
@@ -54,7 +53,7 @@ if (typeof document !== 'undefined') (async () => {
   function renderHistory(sample) {
     const rows = cache.get(cardKey(sample)) || [], older = historySamples(rows, sample), id = esc(cardKey(sample));
      if (!older.length) return `<div class="history-panel" data-for="${id}"><p class="muted">${tr('ui.noHistory')}</p></div>`;
-     return `<div class="history-panel" data-for="${id}"><div class="history">${older.map(row => `<article class="history-sample" data-id="${row.sample_id}">${image(row.svg)}${stars(row, cardKey(sample))}<time datetime="${esc(String(row.created_at || ''))}">${esc(date(row.created_at))}</time></article>`).join('')}</div></div>`;
+     return `<div class="history-panel" data-for="${id}"><div class="history">${older.map(row => `<article class="sample history-sample" data-id="${row.sample_id}">${image(row.svg)}<p><time datetime="${esc(String(row.created_at || ''))}">${esc(when(row.created_at))}</time></p>${stars(row, cardKey(sample))}</article>`).join('')}</div></div>`;
   }
   function placeHistory() {
     root.querySelectorAll('.history-panel').forEach(panel => {
@@ -72,6 +71,7 @@ if (typeof document !== 'undefined') (async () => {
       open.add(id); render();
     });
     document.onkeydown = event => { if (event.key === 'Escape' && open.size) { open.clear(); render(); } };
+    document.onclick = event => { if (open.size && !event.target.closest('.history-panel, .history-toggle')) { open.clear(); render(); } };
     root.querySelectorAll('[data-star]').forEach(button => button.onclick = async () => {
       const sample = button.closest('[data-id]'), historyKey = button.closest('.stars').dataset.historyKey, body = new URLSearchParams({ sample_id: sample.dataset.id, stars: button.dataset.star });
       try {

@@ -69,6 +69,7 @@ def test_ui_design_has_untranslated_efforts_and_history_copy():
     assert '>◷</button>' in script
     assert '<div class="history-panel" data-for="${id}"><p class="muted">${tr(\'ui.noHistory\')}</p></div>' in script
     assert "placeHistory()" in script and "event.key === 'Escape'" in script
+    assert "closest('.history-panel, .history-toggle')" in script
 
 
 def test_ui_sections_use_separate_kind_and_subject_i18n_elements():
@@ -106,3 +107,11 @@ def test_history_overlay_is_out_of_grid_flow_and_symbol_is_not_framed():
     assert ".history-panel { position:absolute;" in css
     assert ".sample-grid { position:relative; }" in css
     assert ".history-toggle { display:block; margin:.6rem auto 0; padding:0; border:0; background:none;" in css
+
+
+def test_history_samples_reuse_main_card_markup():
+    script = (ROOT / "web/ui.js").read_text()
+    assert '<article class="sample history-sample"' in script
+    assert "esc(when(row.created_at))" in script
+    css = (ROOT / "web/style.css").read_text()
+    assert ".history-sample img" not in css and ".history-sample .stars" not in css
