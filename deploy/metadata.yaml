@@ -168,7 +168,7 @@ databases:
             UNION ALL SELECT 'instruction', 'Instruction following', 'Obeying a required output format and several rules at once, including extracting fields into JSON'
             UNION ALL SELECT 'write_zh', 'Writing · 中文', 'Chinese writing that meets explicit requirements on tone, length, structure and wording'
             UNION ALL SELECT 'write_en', 'Writing · English', 'English writing that meets explicit requirements on tone, length, structure and wording'
-            UNION ALL SELECT 'ui', 'Drawing (SVG)', 'Visual design: composing shapes, layout, proportion and color into a coherent image (tested by drawing SVG)'
+            UNION ALL SELECT 'ui', 'Visual design', 'Visual design: composing shapes, layout, proportion and color into a coherent image (tested by drawing SVG)'
           ), latest AS (
             SELECT r.id AS run_id, r.model, r.effort, r.finished_at,
                    r.dataset_version, r.status,
@@ -413,7 +413,7 @@ databases:
           UNION ALL SELECT 'instruction', 'Instruction following', 'Obeying a required output format and several rules at once, including extracting fields into JSON', 'text'
            UNION ALL SELECT 'write_zh', 'Writing · 中文', 'Chinese writing that meets explicit requirements on tone, length, structure and wording', 'text'
            UNION ALL SELECT 'write_en', 'Writing · English', 'English writing that meets explicit requirements on tone, length, structure and wording', 'text'
-          UNION ALL SELECT 'ui', 'Drawing (SVG)', 'Visual design: composing shapes, layout, proportion and color into a coherent image (tested by drawing SVG)', 'svg'
+          UNION ALL SELECT 'ui', 'Visual design', 'Visual design: composing shapes, layout, proportion and color into a coherent image (tested by drawing SVG)', 'svg'
       ui_samples:
         allow: true
         sql: |

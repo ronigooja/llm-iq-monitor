@@ -86,3 +86,13 @@ def test_static_files_have_no_merge_markers():
     for path in (Path(__file__).parents[1] / "web").glob("*.*"):
         text = path.read_text(encoding="utf-8")
         assert not any(line.startswith(("<<<<<<<", ">>>>>>>")) or line == "=======" for line in text.splitlines()), path
+
+
+def test_compare_ui_row_shows_total_cost_and_dimension_is_renamed():
+    script = (ROOT / "web/compare.js").read_text()
+    assert "d.dim==='ui'?`${usd(x.cost_usd)} ${tr('compare.total')}`:usd(x.cost_per_correct)" in script
+    i18n = (ROOT / "web/i18n.js").read_text()
+    assert "'compare.total':'total'" in i18n and "'compare.total':'合计'" in i18n
+    assert "'dim.ui.name':'Visual design'" in i18n and "'dim.ui.name':'视觉设计'" in i18n
+    sql = yaml.safe_load((ROOT / "deploy/metadata.yaml").read_text())["databases"]["monitor"]["queries"]["dimensions"]["sql"]
+    assert "'Visual design'" in sql and "Drawing (SVG)" not in sql
